@@ -1,6 +1,8 @@
 # spoofcheck
 
-A program that checks if a domain can be spoofed from. The program checks SPF and DMARC records for weak configurations that allow spoofing. 
+Original tool made by @BishopFox [spoofcheck](https://github.com/BishopFox/spoofcheck).
+
+A program that checks if a domain (or list of domains) can be spoofed. The program checks SPF and DMARC records for weak configurations that allow spoofing. 
 
 Additionally it will alert if the domain has DMARC configuration that sends mail or HTTP requests on failed SPF/DKIM emails.
 
