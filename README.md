@@ -6,7 +6,9 @@ Additionally it will alert if the domain has DMARC configuration that sends mail
 
 Usage:
 
-	./spoofcheck.py [DOMAIN]
+	./spoofcheck.py -d [DOMAIN]
+	OR
+	./spoofcheck.py -iL [DOMAIN_LIST]
 
 Domains are spoofable if any of the following conditions are met:
 - Lack of an SPF or DMARC record
@@ -17,14 +19,9 @@ Domains are spoofable if any of the following conditions are met:
 ## Dependencies
 - `dnspython`
 - `colorama`
-- `emailprotectionslib`
+- `py-emailprotections`
 - `tldextract`
 
 ## Setup
 
-Run `pip install -r requirements.txt` from the command line to install the required dependencies.
-
-## Coming Soon
-- Standalone Windows executable
-- Basic GUI option
-- Tests
+Run `pip3 install -r requirements.txt` from the command line to install the required dependencies.
