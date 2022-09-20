@@ -1,0 +1,4 @@
+colorama
+py-emailprotections
+dnslib
+tldextract
