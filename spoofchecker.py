@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 
-import argparse, sys, dns.resolver, time
-
+import argparse, dns.resolver
 from colorama import init as color_init
 
 from libs.PrettyOutput import (
@@ -10,26 +9,27 @@ from libs.PrettyOutput import (
     output_warning,
     output_info,
     output_error,
-    output_indifferent,
+    output_indifferent
 )
 
 def get_spf_record(domain):
     try: 
-        spf_record = dns.resolver.resolve(domain , 'TXT')
-        for dns_data in spf_record:
+        spf = dns.resolver.resolve(domain , 'TXT')
+        spf_record = ""
+        for dns_data in spf:
             if 'spf1' in str(dns_data):
-                output_info(f"Found SPF record: {dns_data}")
-                break
-        all = check_spf_all_string(str(dns_data).replace('"',''))
-        includes = False
-
+                spf_record = str(dns_data).replace('"','')
+                output_info(f"Found SPF record: {spf_record}")
+                break  
+        all = check_spf_all_string(spf_record)
+        includes = check_spf_includes(domain)
         return all, includes
     except:
-        output_info("No SPF record found")
+        output_info("No SPF record found.")
         return None, None
 
+
 def check_spf_all_string(spf_record):
-    record = ""
     if spf_record.count("all") > 1: 
         output_good("SPF record contains multiple `All` items.")
         return "2many"
@@ -39,84 +39,101 @@ def check_spf_all_string(spf_record):
         return record
 
 
+def check_spf_includes(domain):
+    count = get_includes_for_domain(domain)
+    if count > 10:
+        output_warning(f"Too many SPF include lookups {count}.")
+        return True
+    else: return False
 
-"""
-check if DMARC record exists, 
-if it DOES exist: check policy and agg/forensic and pct and aspf and subdomain policy
-if NOT then check for organizational record
-if it DOES exist: check policy and agg/forensic and pct and aspf and subdomain policy
-"""
+
+def get_includes_for_domain(domain):
+    spf_record = ""
+    includes = []
+    try:
+        spf = dns.resolver.resolve(domain , 'TXT')
+        for dns_data in spf:
+            if 'spf1' in str(dns_data):
+                spf_record = str(dns_data).replace('"','')
+                break 
+        if spf_record:
+            for item in spf_record.split(' '):
+                if "include:" in item:
+                    includes.append(item.replace('include:', ''))
+    except: 
+        print('') #intentionally shitty
+    return len(includes) + sum([get_includes_for_domain(i) for i in includes]) + 1
+
+
 def get_dmarc_record(domain):
     try: 
-        dmarc_record = dns.resolver.resolve('_dmarc.' + domain , 'TXT')
-        for dns_data in dmarc_record:
+        dmarc = dns.resolver.resolve('_dmarc.' + domain , 'TXT')
+        dmarc_record = ""
+        for dns_data in dmarc:
             if 'DMARC1' in str(dns_data):
-                output_info(f"Found DMARC record: {dns_data}")
+                dmarc_record = str(dns_data).replace('"','')
+                output_info(f"Found DMARC record: {dmarc_record}")
                 break
-        # Policy
-        policy = get_dmarc_policy(str(dns_data))
-        output_info(f"Found DMARC policy: {policy}")
-        # Reports
-        #get_dmarc_reports(str(dns_data))
-        # pct
-        pct = get_dmarc_pct(str(dns_data))
-        # ASPF
-        aspf = get_dmarc_aspf(str(dns_data))
-        # SUBDOMAIN
-        sub = get_dmarc_subdomain_policy(str(dns_data))
+        policy = get_dmarc_policy(dmarc_record)
+        get_dmarc_reports(dmarc_record)
+        pct = get_dmarc_pct(dmarc_record)
+        aspf = get_dmarc_aspf(dmarc_record)
+        sub = get_dmarc_subdomain_policy(dmarc_record)
         return policy, pct, aspf, sub
     except:
         if domain.count('.') > 1: return check_dmarc_org_policy(domain)
         else: 
-            #print( "Not a subdomain" )
+            output_info("No DMARC record found")
             return None, None, None, None
-        # not subdomain
 
 
 def check_dmarc_org_policy(subdomain):
         domain = ".".join(subdomain.split('.')[1:])
-        print("DEBUG: Org Domain: " + domain)
         try: 
-            dmarc_record = dns.resolver.resolve('_dmarc.' + domain , 'TXT')
-            # if org record exists
-            for dns_data in dmarc_record:
+            dmarc = dns.resolver.resolve('_dmarc.' + domain , 'TXT')
+            dmarc_record = ""
+            for dns_data in dmarc:
                 if 'DMARC1' in str(dns_data):
-                    output_info(f"Found DMARC record: {dns_data}")
+                    dmarc_record = str(dns_data).replace('"','')
+                    output_info(f"Found DMARC record: {dmarc_record}")
                     break
-            # if org record exists        
-            policy = get_dmarc_policy(str(dns_data))
-            output_info(f"Found DMARC policy: {policy}")
-                # pct
-            pct = get_dmarc_pct(str(dns_data))
-            # ASPF
-            aspf = get_dmarc_aspf(str(dns_data))
-            # SUBDOMAIN
-            sub = get_dmarc_subdomain_policy(str(dns_data))
+            policy = get_dmarc_policy(dmarc_record)
+            get_dmarc_reports(dmarc_record)
+            pct = get_dmarc_pct(dmarc_record)
+            aspf = get_dmarc_aspf(dmarc_record)
+            sub = get_dmarc_subdomain_policy(dmarc_record)
             return policy, pct, aspf, sub
         except:
-            print( "No Organizational Record" )
+            output_bad("No organizational record.")
             return None, None, None, None
 
+
 def get_dmarc_policy(dmarc_record):
-    #print("DEBUG (get_dmarc_policy):" + dmarc_record )
     if "p=" in str(dmarc_record):
-        policy = str(dmarc_record).split("p=")[1].split(";")[0] #Aint that jank
+        policy = str(dmarc_record).split("p=")[1].split(";")[0]
+        output_info(f"Found DMARC policy: {policy}")
         return policy
     else:
         return None
 
-def get_dmarc_reports():
-    return "Agg"
+
+def get_dmarc_reports(dmarc_record):
+    if "ruf=" in str(dmarc_record) and "fo=1" in str(dmarc_record):
+        fo = str(dmarc_record).split("ruf=")[1].split(";")[0]
+        output_indifferent(f"Forensics reports will be sent: {fo}")
+    if "rua=" in str(dmarc_record):
+        rua = str(dmarc_record).split("rua=")[1].split(";")[0]
+        output_indifferent(f"Aggregate reports will be sent to: {rua}")
 
 
 def get_dmarc_pct(dmarc_record):
-    #print("DEBUG (get_dmarc_pct):" + dmarc_record )
     if "pct" in str(dmarc_record):
         pct = str(dmarc_record).split("pct=")[1].split(";")[0]
         output_info(f"Found DMARC pct: {pct}")
         return pct
     else:
         return None
+
 
 def get_dmarc_aspf(dmarc_record):
     if "aspf=" in str(dmarc_record):
@@ -126,8 +143,8 @@ def get_dmarc_aspf(dmarc_record):
     else:
         return None
 
+
 def get_dmarc_subdomain_policy(dmarc_record):
-    #print("DEBUG (get_dmarc_subdomain_policy):" + dmarc_record )
     if "sp=" in str(dmarc_record):
         subdomain_policy = str(dmarc_record).split("sp=")[1].split(";")[0]
         output_info(f"Found DMARC subdomain policy: {subdomain_policy}")
@@ -136,16 +153,16 @@ def get_dmarc_subdomain_policy(dmarc_record):
         return None
 
 
+# Table thanks to @Calamity
 def is_spoofable(domain, dmarc, spf, includes, pct, aspf):
     try:
-        if dmarc is None:
-            output_good("Spoofing possible for " + domain)
-        elif (pct is not None) and (pct != 100):  output_good("Spoofing possible for " + domain)
+        if dmarc is None: output_good("Spoofing possible for " + domain)
+        elif (pct is not None) and (pct != 100): output_good("Spoofing possible for " + domain)
         elif dmarc == "none":
             if aspf is not None:
                 if aspf == "r":
-                    if spf == "?all":output_good("Spoofing possible for " + domain)
-                    else:output_warning("Spoofing might be possible for " + domain)
+                    if spf == "?all": output_good("Spoofing possible for " + domain)
+                    else: output_warning("Spoofing might be possible for " + domain)
                 if aspf == "s":
                     if spf == "~all": output_warning("Spoofing might be possible for " + domain)
                     elif spf == "?all": output_good("Spoofing possible for " + domain)
@@ -158,23 +175,19 @@ def is_spoofable(domain, dmarc, spf, includes, pct, aspf):
                 if aspf == "r": output_warning("Spoofing might be possible for " + domain)
                 else:
                     if spf == "?all": output_warning("Spoofing might be possible for " + domain)
-                    else:output_bad("Spoofing is not possible for " + domain)
+                    else: output_bad("Spoofing is not possible for " + domain)
             else:
                 if spf == "-all" or spf == "~all": output_bad("Spoofing is not possible for " + domain)
                 else: output_warning("Spoofing might be possible for " + domain)
-
     except IndexError:
-        output_error("Something broke. Debug:2")
-
+        output_error("If you hit this error message, something is really messed up.")
 
 
 def check_domains(domains):
         for domain in domains:
             try:
-                print("\nDomain: " + domain)
-                # Returns 0-all 1-includes
+                output_indifferent("Domain: " + domain)
                 spf_keys = get_spf_record(domain)
-                # Returns policy, pct, aspf, sub
                 dmarc_keys = get_dmarc_record(domain)
                 # domain, dmarc, spf(alls), spf(includes), pct, aspf, 
                 #print("D domain:" + domain)
@@ -184,10 +197,9 @@ def check_domains(domains):
                 #print("D spf(includes):" + str(spf_keys[1]))
                 #print("D pct:" + str(dmarc_keys[1]))
                 #print("D aspf:" + str(dmarc_keys[2]))
-                is_spoofable(domain, dmarc_keys[0], spf_keys[0], spf_keys[1], dmarc_keys[1], dmarc_keys[2] )
-                #is_spoofable(domain, "reject", "-all", None, None, None )
-            except IndexError:
-                output_error("Something broke. Debug:HERE")
+                is_spoofable(domain, dmarc_keys[0], spf_keys[0], spf_keys[1], dmarc_keys[1], dmarc_keys[2])
+                print("\n")
+            except IndexError: output_error("Domain format cannot be interpreted.")
 
 
 if __name__ == "__main__":
@@ -197,16 +209,13 @@ if __name__ == "__main__":
     group.add_argument("-iL", type=str, required=False, help="Provide an input list.")
     group.add_argument("-d", type=str, required=False, help="Provide an single domain.")
     options = parser.parse_args()
-    if not any(vars(options).values()):
-        parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST]`")
+    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST]`")
     domains = []
     if options.iL:
         try:
             with open(options.iL, "r") as f:
-                for line in f:
-                    domains.append(line.strip('\n'))
-        except IOError:
-            print("File doesnt exist or cannot be read.")
+                for line in f: domains.append(line.strip('\n'))
+        except IOError: output_error("File doesnt exist or cannot be read.")
     if options.d:
         domains.append(options.d)
     check_domains(domains)
