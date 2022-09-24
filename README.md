@@ -21,9 +21,12 @@ Install Dependencies:
     pip3 install -r requirements.txt
 ```
 
-## Domain are spoofable if the following conditions are met:
+## Domains are spoofable if the following conditions are met:
 ![table](/img/table.png)
 
+- GREEN is not spoofable.
+- YELLOW might be spoofable.
+- RED is definetly spoofable.
 
 ## Disclaimer
 
