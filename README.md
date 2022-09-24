@@ -22,7 +22,7 @@ Install Dependencies:
 ```
 
 ## Domain are spoofable if the following conditions are met:
-<CHART>
+![table](/img/table.png)
 
 
 ## Disclaimer
