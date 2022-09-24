@@ -1,7 +1,6 @@
 from colorama import Fore, Back, Style
 from colorama import init as color_init
 
-
 def output_good(line):
     print(Fore.GREEN + Style.BRIGHT + "[+]" + Style.RESET_ALL, line)
 
