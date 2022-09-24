@@ -61,7 +61,7 @@ def get_includes_for_domain(domain):
                 if "include:" in item:
                     includes.append(item.replace('include:', ''))
     except: 
-        print('') #intentionally shitty
+        pass #intentionally shitty
     return len(includes) + sum([get_includes_for_domain(i) for i in includes]) + 1
 
 
