@@ -17,13 +17,18 @@ spoofy_resolver.nameservers = ['8.8.8.8']
 
 
 def get_dns_server(domain):
-    query = spoofy_resolver.resolve(domain, 'SOA')
-    if query is not None:
-        dns_server = ""
-        for data in query: dns_server = str(data.mname)
-        return socket.gethostbyname(dns_server)
-    else:
+    try:
+        query = spoofy_resolver.resolve(domain, 'SOA')
+        if query is not None:
+            dns_server = ""
+            for data in query: dns_server = str(data.mname)
+            return socket.gethostbyname(dns_server)
+        else:
+            output_error("DNS Server was not found from SOA Record. Using default 8.8.8.8!")
+    except: 
         output_error("DNS Server was not found from SOA Record. Using default 8.8.8.8!")
+        return "8.8.8.8"
+
 
 def get_spf_record(domain):
     try: 
