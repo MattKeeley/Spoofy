@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-import argparse, dns.resolver
+import argparse, dns.resolver, socket
 from colorama import init as color_init
 
 from libs.PrettyOutput import (
@@ -11,6 +11,19 @@ from libs.PrettyOutput import (
     output_error,
     output_indifferent
 )
+
+spoofy_resolver = dns.resolver.Resolver()
+spoofy_resolver.nameservers = ['8.8.8.8']
+
+
+def get_dns_server(domain):
+    query = dns.resolver.resolve(domain, 'SOA')
+    if query is not None:
+        dns_server = ""
+        for data in query: dns_server = str(data.mname)
+        return socket.gethostbyname(dns_server)
+    else:
+        return "8.8.8.8"
 
 def get_spf_record(domain):
     try: 
@@ -186,6 +199,7 @@ def is_spoofable(domain, dmarc, spf, includes, pct, aspf):
 def check_domains(domains):
         for domain in domains:
             try:
+                spoofy_resolver.nameservers[0] = get_dns_server(domain)
                 output_indifferent("Domain: " + domain)
                 spf_keys = get_spf_record(domain)
                 dmarc_keys = get_dmarc_record(domain)
