@@ -11,7 +11,6 @@ from libs.PrettyOutput import (
     output_error,
     output_indifferent
 )
-
 spoofy_resolver = dns.resolver.Resolver()
 spoofy_resolver.nameservers = ['1.1.1.1']
 
@@ -19,6 +18,7 @@ spoofy_resolver.nameservers = ['1.1.1.1']
 def get_dns_server(domain):
     try:
         dns_server = ""
+        print("!!!DEBUG!!! DNS Server used to find SOA: " + dns.resolver.Resolver().nameservers[0])
         query = dns.resolver.resolve(domain, 'SOA')
         if query is not None:
             for data in query: dns_server = str(data.mname)
@@ -32,6 +32,7 @@ def get_dns_server(domain):
 
 def get_spf_record(domain):
     try: 
+        print("!!!DEBUG!!! DNS Server used to find SPF: " + spoofy_resolver.nameservers[0])
         spf = spoofy_resolver.resolve(domain , 'TXT')
         spf_record = ""
         for dns_data in spf:
