@@ -36,8 +36,13 @@ def get_dns_server(domain):
 
 
 def get_spf_record(domain):
+    spf = None
     try: 
-        spf = spoofy_resolver.resolve(domain , 'TXT')
+        # Edge case. The SOA lists a DNS server that doesnt have port 53 open..... Try cloudflare, if not except and cant find SPF. 
+        try: spf = spoofy_resolver.resolve(domain , 'TXT')
+        except:
+            spoofy_resolver.nameservers[0] = '1.1.1.1'
+            spf = spoofy_resolver.resolve(domain , 'TXT')
         spf_record = ""
         for dns_data in spf:
             if 'spf1' in str(dns_data):
