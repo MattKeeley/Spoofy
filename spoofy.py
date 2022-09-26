@@ -17,7 +17,7 @@ spoofy_resolver.nameservers = ['8.8.8.8']
 
 
 def get_dns_server(domain):
-    query = dns.resolver.resolve(domain, 'SOA')
+    query = spoofy_resolver.resolve(domain, 'SOA')
     if query is not None:
         dns_server = ""
         for data in query: dns_server = str(data.mname)
@@ -27,7 +27,7 @@ def get_dns_server(domain):
 
 def get_spf_record(domain):
     try: 
-        spf = dns.resolver.resolve(domain , 'TXT')
+        spf = spoofy_resolver.resolve(domain , 'TXT')
         spf_record = ""
         for dns_data in spf:
             if 'spf1' in str(dns_data):
@@ -64,7 +64,7 @@ def get_includes_for_domain(domain):
     spf_record = ""
     includes = []
     try:
-        spf = dns.resolver.resolve(domain , 'TXT')
+        spf = spoofy_resolver.resolve(domain , 'TXT')
         for dns_data in spf:
             if 'spf1' in str(dns_data):
                 spf_record = str(dns_data).replace('"','')
@@ -80,7 +80,7 @@ def get_includes_for_domain(domain):
 
 def get_dmarc_record(domain):
     try: 
-        dmarc = dns.resolver.resolve('_dmarc.' + domain , 'TXT')
+        dmarc = spoofy_resolver.resolve('_dmarc.' + domain , 'TXT')
         dmarc_record = ""
         for dns_data in dmarc:
             if 'DMARC1' in str(dns_data):
@@ -103,7 +103,7 @@ def get_dmarc_record(domain):
 def check_dmarc_org_policy(subdomain):
         domain = ".".join(subdomain.split('.')[1:])
         try: 
-            dmarc = dns.resolver.resolve('_dmarc.' + domain , 'TXT')
+            dmarc = spoofy_resolver.resolve('_dmarc.' + domain , 'TXT')
             dmarc_record = ""
             for dns_data in dmarc:
                 if 'DMARC1' in str(dns_data):
