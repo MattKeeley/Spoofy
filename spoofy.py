@@ -23,7 +23,7 @@ def get_dns_server(domain):
         for data in query: dns_server = str(data.mname)
         return socket.gethostbyname(dns_server)
     else:
-        return "8.8.8.8"
+        output_error("DNS Server was not found from SOA Record. Using default 8.8.8.8!")
 
 def get_spf_record(domain):
     try: 
