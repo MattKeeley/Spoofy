@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-import argparse, dns.resolver
+import argparse, dns.resolver, socket
 from colorama import init as color_init
 
 from libs.PrettyOutput import (
@@ -12,9 +12,32 @@ from libs.PrettyOutput import (
     output_indifferent
 )
 
+# This Resolver checks for SOA records. If 1.1.1.1 isnt working, swap to google's 8.8.8.8.
+master_resolver = dns.resolver.Resolver()
+master_resolver.nameservers = ['1.1.1.1']
+
+# Changes on every lookup to the DNS server specified in the SOA record of the domain.
+spoofy_resolver = dns.resolver.Resolver()
+spoofy_resolver.nameservers = ['1.1.1.1']
+
+
+def get_dns_server(domain):
+    try:
+        dns_server = ""
+        query = master_resolver.resolve(domain, 'SOA')
+        if query is not None:
+            for data in query: dns_server = str(data.mname)
+            return socket.gethostbyname(dns_server)
+        else:
+            output_error("DNS Server was not found from SOA Record. Using default 1.1.1.1!")
+    except: 
+        output_error("Failed to find SOA for domain.")
+        return "1.1.1.1"
+
+
 def get_spf_record(domain):
     try: 
-        spf = dns.resolver.resolve(domain , 'TXT')
+        spf = spoofy_resolver.resolve(domain , 'TXT')
         spf_record = ""
         for dns_data in spf:
             if 'spf1' in str(dns_data):
@@ -51,7 +74,7 @@ def get_includes_for_domain(domain):
     spf_record = ""
     includes = []
     try:
-        spf = dns.resolver.resolve(domain , 'TXT')
+        spf = spoofy_resolver.resolve(domain , 'TXT')
         for dns_data in spf:
             if 'spf1' in str(dns_data):
                 spf_record = str(dns_data).replace('"','')
@@ -67,7 +90,7 @@ def get_includes_for_domain(domain):
 
 def get_dmarc_record(domain):
     try: 
-        dmarc = dns.resolver.resolve('_dmarc.' + domain , 'TXT')
+        dmarc = spoofy_resolver.resolve('_dmarc.' + domain , 'TXT')
         dmarc_record = ""
         for dns_data in dmarc:
             if 'DMARC1' in str(dns_data):
@@ -90,7 +113,7 @@ def get_dmarc_record(domain):
 def check_dmarc_org_policy(subdomain):
         domain = ".".join(subdomain.split('.')[1:])
         try: 
-            dmarc = dns.resolver.resolve('_dmarc.' + domain , 'TXT')
+            dmarc = spoofy_resolver.resolve('_dmarc.' + domain , 'TXT')
             dmarc_record = ""
             for dns_data in dmarc:
                 if 'DMARC1' in str(dns_data):
@@ -186,6 +209,7 @@ def is_spoofable(domain, dmarc, spf, includes, pct, aspf):
 def check_domains(domains):
         for domain in domains:
             try:
+                spoofy_resolver.nameservers[0] = get_dns_server(domain)
                 output_indifferent("Domain: " + domain)
                 spf_keys = get_spf_record(domain)
                 dmarc_keys = get_dmarc_record(domain)
