@@ -13,21 +13,23 @@ from libs.PrettyOutput import (
 )
 
 spoofy_resolver = dns.resolver.Resolver()
-spoofy_resolver.nameservers = ['1.1.1.1']
+spoofy_resolver.nameservers = ['8.8.8.8']
 
 
 def get_dns_server(domain):
     try:
-        dns_server = ""
-        query = dns.resolver.resolve(domain, 'SOA')
+        query = spoofy_resolver.resolve(domain, 'SOA')
         if query is not None:
-            for data in query: dns_server = str(data.mname)
+            dns_server = ""
+            for data in query: 
+                dns_server = str(data.mname)
+                print("DEBUG: " + socket.gethostbyname(dns_server))
             return socket.gethostbyname(dns_server)
         else:
-            output_error("DNS Server was not found from SOA Record. Using default 1.1.1.1!")
+            output_error("DNS Server was not found from SOA Record. Using default 8.8.8.8!")
     except: 
-        output_error("Failed to find SOA for domain.")
-        return "1.1.1.1"
+        output_error("DNS Server was not found from SOA Record. Using default 8.8.8.8!")
+        return "8.8.8.8"
 
 
 def get_spf_record(domain):
