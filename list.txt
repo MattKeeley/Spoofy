@@ -1,0 +1,5 @@
+emailspooftest.com
+baddmarc.com
+badspf.com
+baddkim.com
+access-board.gov
