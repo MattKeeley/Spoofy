@@ -1,9 +1,16 @@
-# Spoofy
+<h1 align="center">
+<br>
+<img src=/img/Spoofy.png height="310" border="2px solid #555">
+<br>
+Spoofy
+</h1>
+
 
 [![forthebadge](https://forthebadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
 [![forthebadge](https://forthebadge.com/images/badges/contains-tasty-spaghetti-code.svg)](https://www.thewholesomedish.com/spaghetti/)
 [![forthebadge](https://forthebadge.com/images/badges/it-works-why.svg)](https://www.youtube.com/watch?v=kyti25ol438)
 
+## Description
 `Spoofy` is a program that checks if a list of domains can be spoofed based on SPF and DMARC records. 
 
 
