@@ -15,7 +15,7 @@
 Usage:
     ./spoofy.py -d [DOMAIN]
     OR
-    ./spoofy.py  -iL [DOMAIN_LIST]
+    ./spoofy.py -iL [DOMAIN_LIST]
     
 Install Dependencies:
     pip3 install -r requirements.txt
