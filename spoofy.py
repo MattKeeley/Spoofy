@@ -46,6 +46,7 @@ def get_spf_record(domain):
                 spf_record = str(dns_data).replace('"','')
                 output_info(f"Found SPF record: {spf_record}")
                 break  
+        if spf_record == "": output_info("No SPF record found.");return None
         return spf_record
     except:
         output_info("No SPF record found.")
@@ -195,12 +196,12 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
         if spf_record is None:
             if p is None:  output_good("Spoofing possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
-        elif pct and pct != 100:
+        elif pct and int(pct) != 100:
             output_warning("Spoofing might be possible for " + domain)
         elif spf_includes > 10 and p is None:
             output_good("Spoofing possible for " + domain)
         elif spf_all == "2many": 
-            if p == "none": output_warning("Spoofing might be possible for " + domain)
+            if p == "none": print("B ");output_warning("Spoofing might be possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
         elif spf_all and p is None: output_good("Spoofing possible for " + domain)
         elif spf_all == "-all":
@@ -241,7 +242,7 @@ def check_domains(domains):
                 spoofy_resolver.nameservers[0] = get_dns_server(domain)
                 output_indifferent("Domain: " + domain)
                 spf_record = get_spf_record(domain)
-                if spf_record is not None:
+                if spf_record:
                     spf_all = get_spf_all_string(spf_record)
                     spf_includes = get_spf_includes(domain)
                 dmarc_record = get_dmarc_record(domain)
