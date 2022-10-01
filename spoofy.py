@@ -261,7 +261,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-iL", type=str, required=False, help="Provide an input list.")
     group.add_argument("-d", type=str, required=False, help="Provide an single domain.")
-    parser.add_argument("-t", type=str, required=False, default=5, help="How many threads do you want to use?.")
+    parser.add_argument("-t", type=int, required=False, default=5, help="How many threads do you want to use?.")
     options = parser.parse_args()
     if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST] Optional: -t [THREADS]`")
     domains = []
