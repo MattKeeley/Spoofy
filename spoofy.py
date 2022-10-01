@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 
 import argparse, dns.resolver, socket, re
-from email import policy
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from colorama import init as color_init
 
@@ -196,16 +195,16 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
         if spf_record is None:
             if p is None:  output_good("Spoofing possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
-        elif pct != 100:
+        elif pct and pct != 100:
             output_warning("Spoofing might be possible for " + domain)
         elif spf_includes > 10 and p is None:
             output_good("Spoofing possible for " + domain)
         elif spf_all == "2many": 
             if p == "none": output_warning("Spoofing might be possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
-        elif spf_all is not None and p is None: output_good("Spoofing possible for " + domain)
+        elif spf_all and p is None: output_good("Spoofing possible for " + domain)
         elif spf_all == "-all":
-            if p is not None and aspf is not None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
+            if p  and aspf and sp == "none": output_good("Subdomain spoofing possible for " + domain)
             elif aspf is None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
             elif p == "none" and (aspf == "r" or aspf is None) and sp is None: output_warning("Spoofing might be possible (Mailbox dependant) for " + domain)
             elif p == "none" and aspf == "r" and (sp == "reject" or sp == "quarentine"): output_good("Organizational domain spoofing possible for " + domain)
@@ -217,17 +216,17 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
             elif p == "none" and sp is None: output_good("Spoofing possible for " + domain)
             elif p == "none" and sp == "none": output_good("Subdomain spoofing possible for " + domain);output_good("Organizational domain spoofing possible for " + domain)
             elif (p == "reject" or p == "quarentine") and aspf is None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
-            elif (p == "reject" or p == "quarentine") and aspf is not None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
+            elif (p == "reject" or p == "quarentine") and aspf and sp == "none": output_good("Subdomain spoofing possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
 
         elif spf_all == "?all":
-            if (p == "reject" or p == "quarentine") and aspf is not None and sp == "none": output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
+            if (p == "reject" or p == "quarentine") and aspf and sp == "none": output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
             elif (p == "reject" or p == "quarentine") and aspf is None and sp == "none": output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
             elif p == "none" and aspf == "r" and sp is None:  output_good("Spoofing possible for " + domain)
             elif p == "none" and aspf == "r" and sp == "none":  output_good("Subdomain spoofing possible for " + domain);output_good("Organizational domain spoofing possible for " + domain)
             elif p == "none" and aspf == "s" or None and sp == "none": output_good("Subdomain spoofing possible for " + domain);output_warning("Organizational domain spoofing may be possible for " + domain)
             elif p == "none" and aspf == "s" or None and sp is None:  output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
-            elif p == "none" and aspf is not None and (sp == "reject" or sp == "quarentine"):output_warning("Organizational domain spoofing may be possible for " + domain)
+            elif p == "none" and aspf and (sp == "reject" or sp == "quarentine"):output_warning("Organizational domain spoofing may be possible for " + domain)
             elif p == "none" and aspf is None and sp  == "reject": output_warning("Organizational domain spoofing may be possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
     except:
@@ -237,13 +236,13 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
 def check_domains(domains):
         for domain in domains:
             try:
-                p=None; aspf=None; spf_record=None; spf_alls=None; 
+                p=None; aspf=None; spf_record=None; spf_all=None; 
                 spf_includes=None; sp=None; pct=None;
                 spoofy_resolver.nameservers[0] = get_dns_server(domain)
                 output_indifferent("Domain: " + domain)
                 spf_record = get_spf_record(domain)
                 if spf_record is not None:
-                    spf_alls = get_spf_all_string(spf_record)
+                    spf_all = get_spf_all_string(spf_record)
                     spf_includes = get_spf_includes(domain)
                 dmarc_record = get_dmarc_record(domain)
                 if dmarc_record is not None:
@@ -251,7 +250,7 @@ def check_domains(domains):
                     aspf = get_dmarc_aspf(dmarc_record)
                     sp = get_dmarc_subdomain_policy(dmarc_record)
                     pct = get_dmarc_pct(dmarc_record)
-                is_spoofable(domain, p, aspf, spf_record, spf_alls, spf_includes, sp, pct)
+                is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct)
                 print("\n")
             except: output_error("Domain format cannot be interpreted.")
 
@@ -272,4 +271,4 @@ if __name__ == "__main__":
         except IOError: output_error("File doesnt exist or cannot be read.")
     if options.d:
         domains.append(options.d)
-    check_domains(domains)
+    check_domains(domains)    with ThreadPoolExecutor(max_workers=100) as executor:
