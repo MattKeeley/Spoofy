@@ -261,8 +261,9 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-iL", type=str, required=False, help="Provide an input list.")
     group.add_argument("-d", type=str, required=False, help="Provide an single domain.")
+    parser.add_argument("-t", type=str, required=False, default=5, help="How many threads do you want to use?.")
     options = parser.parse_args()
-    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST]`")
+    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST] Optional: -t [THREADS]`")
     domains = []
     if options.iL:
         try:
@@ -271,4 +272,6 @@ if __name__ == "__main__":
         except IOError: output_error("File doesnt exist or cannot be read.")
     if options.d:
         domains.append(options.d)
-    check_domains(domains)    with ThreadPoolExecutor(max_workers=100) as executor:
+        
+    with ThreadPoolExecutor(max_workers=options.t) as executor:
+            futures = [executor.submit(check_domains, domains)]
