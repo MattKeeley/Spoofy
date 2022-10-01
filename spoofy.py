@@ -91,8 +91,8 @@ def get_list_of_includes(domain):
             count = len(re.compile("[ ,+]a[ , :]").findall(spf_record))
             count += len(re.compile("[ ,+]mx[ ,:]").findall(spf_record))
             count += len(re.compile("[ ]ptr[ ]").findall(spf_record))
-            count += len(re.compile("exists").findall(spf_record))
-            for i in range(0, count):
+            count += len(re.compile("exists[:]").findall(spf_record))
+            for i in range(0, count): # Since other function is recursive and I dont want to figure out how to count, add a domain with 1 include.
                 includes.append("18f.gov")
             for item in spf_record.split(' '):
                 url = item.replace('include:', '')
@@ -104,8 +104,7 @@ def get_list_of_includes(domain):
 
 
 def get_includes_for_domain(domain, list):
-    # get a list of includes for the top domain
-    # recursively check every item
+    # Recursively check the includes for a given domain
     for i in get_list_of_includes(domain):
         if i == "18f.gov": # this is scuffed but it works. 
             list.append(i)
@@ -117,7 +116,6 @@ def get_includes_for_domain(domain, list):
 
 
 def get_dmarc_record(domain):
-    # Check if record is a subdomain
     if domain.count('.') > 1: return get_dmarc_org_policy(domain)
     else:
         try: 
@@ -235,6 +233,7 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
     except:
         output_error("If you hit this error message, something is really messed up.")
 
+
 def check_domains(domains):
         for domain in domains:
             try:
@@ -256,15 +255,15 @@ def check_domains(domains):
                 print("\n")
             except: output_error("Domain format cannot be interpreted.")
 
+
 if __name__ == "__main__":
     color_init()
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-iL", type=str, required=False, help="Provide an input list.")
     group.add_argument("-d", type=str, required=False, help="Provide an single domain.")
-    parser.add_argument("-t", type=str, required=False, help="How many threads do you want to use?.")
     options = parser.parse_args()
-    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST] Optional: -t [THREADS]`")
+    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST]`")
     domains = []
     if options.iL:
         try:
