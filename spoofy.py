@@ -44,12 +44,10 @@ def get_spf_record(domain):
         for dns_data in spf:
             if 'spf1' in str(dns_data):
                 spf_record = str(dns_data).replace('"','')
-                output_info(f"Found SPF record: {spf_record}")
                 break  
-        if spf_record == "": output_info("No SPF record found.");return None
+        if spf_record == "": return None
         return spf_record
     except:
-        output_info("No SPF record found.")
         return None
 
 
@@ -79,14 +77,10 @@ def get_list_of_includes(domain):
     spf_record = ""
     includes = []
     try:
-        try: spf = spoofy_resolver.resolve(domain , 'TXT')
+        try: 
+           spf_record = get_spf_record(domain)
         except:
-            spoofy_resolver.nameservers[0] = '1.1.1.1'
-            spf = spoofy_resolver.resolve(domain , 'TXT')
-        for dns_data in spf:
-            if 'spf1' in str(dns_data):
-                spf_record = str(dns_data).replace('"','')
-                break 
+            output_error("Could not find SPF record for " + domain)
         if spf_record:
             count = len(re.compile("[ ,+]a[ , :]").findall(spf_record))
             count += len(re.compile("[ ,+]mx[ ,:]").findall(spf_record))
@@ -201,7 +195,7 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
         elif spf_includes > 10 and p is None:
             output_good("Spoofing possible for " + domain)
         elif spf_all == "2many": 
-            if p == "none": print("B ");output_warning("Spoofing might be possible for " + domain)
+            if p == "none": output_warning("Spoofing might be possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
         elif spf_all and p is None: output_good("Spoofing possible for " + domain)
         elif spf_all == "-all":
@@ -243,8 +237,10 @@ def check_domains(domains):
                 output_indifferent("Domain: " + domain)
                 spf_record = get_spf_record(domain)
                 if spf_record:
+                    output_info(f"Found SPF record: {spf_record}")
                     spf_all = get_spf_all_string(spf_record)
                     spf_includes = get_spf_includes(domain)
+                else: output_info("No SPF record found.")
                 dmarc_record = get_dmarc_record(domain)
                 if dmarc_record is not None:
                     p = get_dmarc_policy(dmarc_record)
