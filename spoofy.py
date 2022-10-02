@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 
 import argparse, dns.resolver, socket, re
-from email import policy
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from colorama import init as color_init
 
@@ -45,11 +44,10 @@ def get_spf_record(domain):
         for dns_data in spf:
             if 'spf1' in str(dns_data):
                 spf_record = str(dns_data).replace('"','')
-                output_info(f"Found SPF record: {spf_record}")
                 break  
+        if spf_record == "": return None
         return spf_record
     except:
-        output_info("No SPF record found.")
         return None
 
 
@@ -79,14 +77,10 @@ def get_list_of_includes(domain):
     spf_record = ""
     includes = []
     try:
-        try: spf = spoofy_resolver.resolve(domain , 'TXT')
+        try: 
+           spf_record = get_spf_record(domain)
         except:
-            spoofy_resolver.nameservers[0] = '1.1.1.1'
-            spf = spoofy_resolver.resolve(domain , 'TXT')
-        for dns_data in spf:
-            if 'spf1' in str(dns_data):
-                spf_record = str(dns_data).replace('"','')
-                break 
+            output_error("Could not find SPF record for " + domain)
         if spf_record:
             count = len(re.compile("[ ,+]a[ , :]").findall(spf_record))
             count += len(re.compile("[ ,+]mx[ ,:]").findall(spf_record))
@@ -196,16 +190,16 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
         if spf_record is None:
             if p is None:  output_good("Spoofing possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
-        elif pct != 100:
+        elif pct and int(pct) != 100:
             output_warning("Spoofing might be possible for " + domain)
         elif spf_includes > 10 and p is None:
             output_good("Spoofing possible for " + domain)
         elif spf_all == "2many": 
             if p == "none": output_warning("Spoofing might be possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
-        elif spf_all is not None and p is None: output_good("Spoofing possible for " + domain)
+        elif spf_all and p is None: output_good("Spoofing possible for " + domain)
         elif spf_all == "-all":
-            if p is not None and aspf is not None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
+            if p  and aspf and sp == "none": output_good("Subdomain spoofing possible for " + domain)
             elif aspf is None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
             elif p == "none" and (aspf == "r" or aspf is None) and sp is None: output_warning("Spoofing might be possible (Mailbox dependant) for " + domain)
             elif p == "none" and aspf == "r" and (sp == "reject" or sp == "quarentine"): output_good("Organizational domain spoofing possible for " + domain)
@@ -217,17 +211,17 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
             elif p == "none" and sp is None: output_good("Spoofing possible for " + domain)
             elif p == "none" and sp == "none": output_good("Subdomain spoofing possible for " + domain);output_good("Organizational domain spoofing possible for " + domain)
             elif (p == "reject" or p == "quarentine") and aspf is None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
-            elif (p == "reject" or p == "quarentine") and aspf is not None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
+            elif (p == "reject" or p == "quarentine") and aspf and sp == "none": output_good("Subdomain spoofing possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
 
         elif spf_all == "?all":
-            if (p == "reject" or p == "quarentine") and aspf is not None and sp == "none": output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
+            if (p == "reject" or p == "quarentine") and aspf and sp == "none": output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
             elif (p == "reject" or p == "quarentine") and aspf is None and sp == "none": output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
             elif p == "none" and aspf == "r" and sp is None:  output_good("Spoofing possible for " + domain)
             elif p == "none" and aspf == "r" and sp == "none":  output_good("Subdomain spoofing possible for " + domain);output_good("Organizational domain spoofing possible for " + domain)
             elif p == "none" and aspf == "s" or None and sp == "none": output_good("Subdomain spoofing possible for " + domain);output_warning("Organizational domain spoofing may be possible for " + domain)
             elif p == "none" and aspf == "s" or None and sp is None:  output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
-            elif p == "none" and aspf is not None and (sp == "reject" or sp == "quarentine"):output_warning("Organizational domain spoofing may be possible for " + domain)
+            elif p == "none" and aspf and (sp == "reject" or sp == "quarentine"):output_warning("Organizational domain spoofing may be possible for " + domain)
             elif p == "none" and aspf is None and sp  == "reject": output_warning("Organizational domain spoofing may be possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
     except:
@@ -237,21 +231,23 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
 def check_domains(domains):
         for domain in domains:
             try:
-                p=None; aspf=None; spf_record=None; spf_alls=None; 
+                p=None; aspf=None; spf_record=None; spf_all=None; 
                 spf_includes=None; sp=None; pct=None;
                 spoofy_resolver.nameservers[0] = get_dns_server(domain)
                 output_indifferent("Domain: " + domain)
                 spf_record = get_spf_record(domain)
-                if spf_record is not None:
-                    spf_alls = get_spf_all_string(spf_record)
+                if spf_record:
+                    output_info(f"Found SPF record: {spf_record}")
+                    spf_all = get_spf_all_string(spf_record)
                     spf_includes = get_spf_includes(domain)
+                else: output_info("No SPF record found.")
                 dmarc_record = get_dmarc_record(domain)
                 if dmarc_record is not None:
                     p = get_dmarc_policy(dmarc_record)
                     aspf = get_dmarc_aspf(dmarc_record)
                     sp = get_dmarc_subdomain_policy(dmarc_record)
                     pct = get_dmarc_pct(dmarc_record)
-                is_spoofable(domain, p, aspf, spf_record, spf_alls, spf_includes, sp, pct)
+                is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct)
                 print("\n")
             except: output_error("Domain format cannot be interpreted.")
 
@@ -263,7 +259,7 @@ if __name__ == "__main__":
     group.add_argument("-iL", type=str, required=False, help="Provide an input list.")
     group.add_argument("-d", type=str, required=False, help="Provide an single domain.")
     options = parser.parse_args()
-    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST]`")
+    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofcheck.py -d [DOMAIN]` OR `spoofcheck.py -iL [DOMAIN_LIST] Optional: -t [THREADS]`")
     domains = []
     if options.iL:
         try:
