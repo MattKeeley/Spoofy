@@ -23,7 +23,7 @@ def get_dns_server(domain):
         dns_server = ""
         spoofy_resolver.nameservers = ['1.1.1.1']
         query = spoofy_resolver.resolve(domain, 'SOA')
-        if query is not None:
+        if query:
             for data in query: dns_server = str(data.mname)
             return socket.gethostbyname(dns_server)
         else:
@@ -112,8 +112,11 @@ def get_includes_for_domain(domain, list):
 def get_dmarc_record(domain):
     if domain.count('.') > 1: return get_dmarc_org_policy(domain)
     else:
-        try: 
-            dmarc = spoofy_resolver.resolve('_dmarc.' + domain , 'TXT')
+        try:
+            try: dmarc = spoofy_resolver.resolve('_dmarc.' + domain , 'TXT')
+            except:
+                spoofy_resolver.nameservers[0] = '1.1.1.1'
+                dmarc = spoofy_resolver.resolve('_dmarc.' + domain , 'TXT')
             dmarc_record = ""
             for dns_data in dmarc:
                 if 'DMARC1' in str(dns_data):
@@ -187,11 +190,11 @@ def get_dmarc_subdomain_policy(dmarc_record):
 # Table thanks to @Calamity
 def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
     try:
-        if spf_record is None:
+        if pct and int(pct) != 100:
+            output_warning("Spoofing might be possible for " + domain)
+        elif spf_record is None:
             if p is None:  output_good("Spoofing possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
-        elif pct and int(pct) != 100:
-            output_warning("Spoofing might be possible for " + domain)
         elif spf_includes > 10 and p is None:
             output_good("Spoofing possible for " + domain)
         elif spf_all == "2many": 
@@ -213,7 +216,6 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
             elif (p == "reject" or p == "quarentine") and aspf is None and sp == "none": output_good("Subdomain spoofing possible for " + domain)
             elif (p == "reject" or p == "quarentine") and aspf and sp == "none": output_good("Subdomain spoofing possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
-
         elif spf_all == "?all":
             if (p == "reject" or p == "quarentine") and aspf and sp == "none": output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
             elif (p == "reject" or p == "quarentine") and aspf is None and sp == "none": output_warning("Subdomain spoofing might be possible (Mailbox dependant) for " + domain)
@@ -224,9 +226,9 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
             elif p == "none" and aspf and (sp == "reject" or sp == "quarentine"):output_warning("Organizational domain spoofing may be possible for " + domain)
             elif p == "none" and aspf is None and sp  == "reject": output_warning("Organizational domain spoofing may be possible for " + domain)
             else: output_bad("Spoofing not possible for " + domain)
+        else: output_bad("Spoofing not possible for " + domain)
     except:
         output_error("If you hit this error message, something is really messed up.")
-
 
 def check_domains(domains):
         for domain in domains:
@@ -241,8 +243,9 @@ def check_domains(domains):
                     spf_all = get_spf_all_string(spf_record)
                     spf_includes = get_spf_includes(domain)
                 else: output_info("No SPF record found.")
+                spoofy_resolver.nameservers[0] = get_dns_server(domain)
                 dmarc_record = get_dmarc_record(domain)
-                if dmarc_record is not None:
+                if dmarc_record:
                     p = get_dmarc_policy(dmarc_record)
                     aspf = get_dmarc_aspf(dmarc_record)
                     sp = get_dmarc_subdomain_policy(dmarc_record)
