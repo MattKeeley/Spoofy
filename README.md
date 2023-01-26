@@ -1,6 +1,6 @@
 <h1 align="center">
 <br>
-<img src=/files/spoofy.png height="310" border="2px solid #555">
+<img src=/files/spoofy.png height="375" border="2px solid #555">
 <br>
 Spoofy
 </h1>
