@@ -37,7 +37,7 @@ Install Dependencies:
 [Download Here](/files/Master_Table.xlsx)
 
 ## METHODOLOGY 
-The creation of the spoofability table involved listing every relevant SPF and DMARC configuration, combining them, and then conducting spoofability testing using the early version of Spoofy. The testing was conducted on a large number of US government and local government domains, using Microsoft 365. However, the initial testing was conducted using Protonmail and Gmail, but these services were found to utilize reverse lookup checks that affected the results, particularly for subdomain spoof testing. As a result, Microsoft 365 was used for the testing, as it offered greater control over the handling of mail.
+The creation of the spoofability table involved listing every relevant SPF and DMARC configuration, combining them, and then conducting SPF and DMARC information collection using an early version of Spoofy on a large number of US government domains. Testing if an SPF and DMARC combination was spoofable or not was done using the email security pentesting suite at [emailspooftest](https://emailspooftest.com/) using Microsoft 365. However, the initial testing was conducted using Protonmail and Gmail, but these services were found to utilize reverse lookup checks that affected the results, particularly for subdomain spoof testing. As a result, Microsoft 365 was used for the testing, as it offered greater control over the handling of mail.
 
 After the initial testing using Microsoft 365, some combinations were retested using Protonmail and Gmail due to the differences in their handling of banners in emails. Protonmail and Gmail can place spoofed mail in the inbox with a banner or in spam without a banner, leading to some SPF and DMARC combinations being reported as "Mailbox Dependent" when using Spoofy. In contrast, Microsoft 365 places both conditions in spam. The testing and data collection process took several days to complete, after which a good master table was compiled and used as the basis for the Spoofy spoofability logic.
 
@@ -59,8 +59,9 @@ Tool was inspired by [Bishop Fox's](https://github.com/BishopFox/) project calle
 
 Lead / Only programmer & spoofability logic comprehension upgrades & lookup resiliency system / fix (main issue with other tools) & multithreading & feature additions: [Matt Keeley](https://github.com/MattKeeley/)
 
-DMARC, SPF, DNS insights & Spoofability table creation/confirmation/testing & application accuracy/quality assurance: calamity#6391
+DMARC, SPF, DNS insights & Spoofability table creation/confirmation/testing & application accuracy/quality assurance: calamity#6391 / [eman-ekaf](https://github.com/eman-ekaf)
 
+New logo: cobracode#0398
 
 
 ## LICENSE
