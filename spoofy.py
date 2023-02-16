@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-import argparse, dns.resolver, socket, re
+import argparse, dns.resolver, tldextract, socket, re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from colorama import init as color_init
 
@@ -110,7 +110,7 @@ def get_includes_for_domain(domain, list):
 
 
 def get_dmarc_record(domain):
-    if domain.count('.') > 1: return get_dmarc_org_policy(domain)
+    if bool(tldextract.extract(domain).subdomain): return get_dmarc_org_policy(domain)
     else:
         try:
             try: dmarc = spoofy_resolver.resolve('_dmarc.' + domain , 'TXT')
