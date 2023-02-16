@@ -41,11 +41,6 @@ The creation of the spoofability table involved listing every relevant SPF and D
 
 After the initial testing using Microsoft 365, some combinations were retested using Protonmail and Gmail due to the differences in their handling of banners in emails. Protonmail and Gmail can place spoofed mail in the inbox with a banner or in spam without a banner, leading to some SPF and DMARC combinations being reported as "Mailbox Dependent" when using Spoofy. In contrast, Microsoft 365 places both conditions in spam. The testing and data collection process took several days to complete, after which a good master table was compiled and used as the basis for the Spoofy spoofability logic.
 
-
-## ROADMAP
-The team proposed the idea of making the tool more widely accessible by developing a web application. To do this in a secure and cost-effective manner, the team is considering using an interpreter to run the Python client-side in the browser. This would be particularly useful in corporate environments where administrators are prohibited from using Python or do not have access to virtual machines. This solution would allow for broader use of the tool, particularly in government settings.
-
-
 ## DISCLAIMER
 
 > This tool is only for testing and academic purposes and can only be used where
@@ -55,16 +50,16 @@ The team proposed the idea of making the tool more widely accessible by developi
 > caused by this tool and software.
 
 ## CREDIT
-Tool was inspired by [Bishop Fox's](https://github.com/BishopFox/) project called [spoofcheck](https://github.com/BishopFox/spoofcheck/).
 
-Lead / Only programmer & spoofability logic comprehension upgrades & lookup resiliency system / fix (main issue with other tools) & multithreading & feature additions: [Matt Keeley](https://github.com/MattKeeley/)
+Lead / Only programmer & spoofability logic comprehension upgrades & lookup resiliency system / fix (main issue with other tools) & multithreading & feature additions: [Matt Keeley](https://www.linkedin.com/in/mattrkeeley/)
 
 DMARC, SPF, DNS insights & Spoofability table creation/confirmation/testing & application accuracy/quality assurance: calamity#6391 / [eman-ekaf](https://github.com/eman-ekaf)
 
 New logo: cobracode#0398
 
+Tool was inspired by [Bishop Fox's](https://github.com/BishopFox/) project called [spoofcheck](https://github.com/BishopFox/spoofcheck/).
+
 
 ## LICENSE
 
-This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE)
-file for details
+This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) file for details
