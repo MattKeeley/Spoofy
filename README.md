@@ -24,9 +24,9 @@ Well, Spoofy is different and here is why:
 
 ```console
 Usage:
-    ./spoofy.py -d [DOMAIN]
+    ./spoofy.py -d [DOMAIN] -o [stdout or xls]
     OR
-    ./spoofy.py -iL [DOMAIN_LIST]
+    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout or xls]
     
 Install Dependencies:
     pip3 install -r requirements.txt
