@@ -1,3 +1,5 @@
 colorama
 dnspython>= 2.2.1
 tldextract
+pandas
+openpyxl
