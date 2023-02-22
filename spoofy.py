@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-import argparse, dns.resolver, tldextract, socket, re, tldextract, os
+import argparse, dns.resolver, tldextract, socket, re, os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from colorama import init as color_init
 import pandas as pd
@@ -21,8 +21,9 @@ def get_spf_record(domain, dns_server):
     spf = None
     try: 
         try: 
-            temp.nameservers[0] = dns_server
-            spf = temp.resolve(domain , 'TXT')
+            a = dns.resolver.Resolver()
+            a.nameservers[0] = dns_server
+            spf = a.resolve(domain , 'TXT')
         except:
             return None
         for dns_data in spf:
@@ -113,7 +114,6 @@ def get_aggregate_report(dmarc_record):
 def find_dns_server(domain):
     SOA = get_soa_record(domain)
     if SOA:
-        temp.nameservers[0] = SOA
         spf = get_spf_record(domain, SOA)
         dmarc = get_dmarc_record(domain, SOA)
         if (spf is not None) or (dmarc is not None):
@@ -126,7 +126,9 @@ def find_dns_server(domain):
     dmarc = get_dmarc_record(domain, '8.8.8.8')
     if (spf is not None) or (dmarc is not None):
         return '8.8.8.8', spf, dmarc
-    return None
+    # No SPF or DMARC record found using 3 different DNS providers. 
+    # Defaulting back to Cloudflare
+    return '1.1.1.1', None, None 
 
 def orchestrator(domains, output):
     for domain in domains:
@@ -135,8 +137,7 @@ def orchestrator(domains, output):
             dns_server=None;
             spf_record=None; spf_all=None; spf_includes=None;
             dmarc_record=None; subdomain=bool(tldextract.extract(domain).subdomain); 
-            p=None; pct=None; aspf=None; sp=None; forensics_report=None;
-
+            p=None; pct=None; aspf=None; sp=None; fo=None; rua=None;
             dns_server, spf_record, dmarc_record = find_dns_server(domain)
             if spf_record:
                 spf_all = get_spf_all_string(spf_record)
@@ -151,19 +152,10 @@ def orchestrator(domains, output):
             spoofable = is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct)
             if output == "xls":
                 data = [
-                {'DOMAIN': domain, 
-                'SUBDOMAIN': subdomain,
-                'SPF': spf_record, 
-                'SPF MULTIPLE ALLS': spf_all, 
-                'SPF TOO MANY INCLUDES': spf_includes,
-                'DMARC': dmarc_record,
-                'DMARC POLICY': p,
-                'DMARC PCT': pct,
-                'DMARC ASPF': aspf,
-                'DMARC SP': sp,
-                'DMARC FORENSIC REPORT': fo,
-                'DMARC AGGREGATE REPORT': rua,
-                'SPOOFING POSSIBLE': spoofable}]
+                {'DOMAIN': domain, 'SUBDOMAIN': subdomain,'SPF': spf_record, 'SPF MULTIPLE ALLS': spf_all,
+                 'SPF TOO MANY INCLUDES': spf_includes,'DMARC': dmarc_record,'DMARC POLICY': p,
+                 'DMARC PCT': pct,'DMARC ASPF': aspf,'DMARC SP': sp,'DMARC FORENSIC REPORT': fo,
+                 'DMARC AGGREGATE REPORT': rua,'SPOOFING POSSIBLE': spoofable}]
                 file_name = "report.xlsx"
                 if not os.path.exists(file_name):
                     with open(file_name, 'w'):
@@ -177,10 +169,9 @@ def orchestrator(domains, output):
                     df = pd.DataFrame(data)
                     df.to_excel(file_name, index=False)
             else:
-                printer(domain, dns_server, spf_record, spf_all, spf_includes,
-                dmarc_record, subdomain, p, pct, aspf, sp, fo, rua, spoofable)      
-
-        except: error("Domain format cannot be interpreted.")
+                printer(domain, subdomain, dns_server, spf_record, spf_all,
+                 spf_includes, dmarc_record, p, pct, aspf, sp, fo, rua, spoofable) 
+        except: error(f"Domain {domain} format cannot be interpreted.")
 
 
 
