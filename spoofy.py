@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-import argparse, dns.resolver, tldextract, socket, re
+import argparse, dns.resolver, tldextract, socket, re, tldextract, os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from colorama import init as color_init
 import pandas as pd
@@ -12,7 +12,6 @@ temp = dns.resolver.Resolver()
 def get_soa_record(domain):
     temp.nameservers[0] = '1.1.1.1'
     query = temp.resolve(domain, 'SOA')
-    dns_server = ""
     if query:
         for data in query: dns_server = str(data.mname)
         return socket.gethostbyname(dns_server)
@@ -129,7 +128,7 @@ def find_dns_server(domain):
         return '8.8.8.8', spf, dmarc
     return None
 
-def orchestrator(domains):
+def orchestrator(domains, output):
     for domain in domains:
         try:
             # Initiate Variables
@@ -139,10 +138,6 @@ def orchestrator(domains):
             p=None; pct=None; aspf=None; sp=None; forensics_report=None;
 
             dns_server, spf_record, dmarc_record = find_dns_server(domain)
-
-            # If subdomain, find the org policy
-            # if not, find the dmarc record
-
             if spf_record:
                 spf_all = get_spf_all_string(spf_record)
                 spf_includes = get_spf_includes(domain)
@@ -154,9 +149,36 @@ def orchestrator(domains):
                 fo = get_forensics_report(dmarc_record)
                 rua = get_aggregate_report(dmarc_record)
             spoofable = is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct)
-            print(spoofable)
-            printer(domain, dns_server, spf_record, spf_all, spf_includes,
-            dmarc_record, subdomain, p, pct, aspf, sp, fo, rua, spoofable)      
+            if output == "xls":
+                data = [
+                {'DOMAIN': domain, 
+                'SUBDOMAIN': subdomain,
+                'SPF': spf_record, 
+                'SPF MULTIPLE ALLS': spf_all, 
+                'SPF TOO MANY INCLUDES': spf_includes,
+                'DMARC': dmarc_record,
+                'DMARC POLICY': p,
+                'DMARC PCT': pct,
+                'DMARC ASPF': aspf,
+                'DMARC SP': sp,
+                'DMARC FORENSIC REPORT': fo,
+                'DMARC AGGREGATE REPORT': rua,
+                'SPOOFING POSSIBLE': spoofable}]
+                file_name = "report.xlsx"
+                if not os.path.exists(file_name):
+                    with open(file_name, 'w'):
+                        pass
+                if os.path.getsize(file_name) > 0:
+                    existing_df = pd.read_excel(file_name)
+                    new_df = pd.DataFrame(data)
+                    combined_df = pd.concat([existing_df, new_df])
+                    combined_df.to_excel(file_name, index=False)
+                else:
+                    df = pd.DataFrame(data)
+                    df.to_excel(file_name, index=False)
+            else:
+                printer(domain, dns_server, spf_record, spf_all, spf_includes,
+                dmarc_record, subdomain, p, pct, aspf, sp, fo, rua, spoofable)      
 
         except: error("Domain format cannot be interpreted.")
 
@@ -168,6 +190,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-iL", type=str, required=False, help="Provide an input list.")
     group.add_argument("-d", type=str, required=False, help="Provide an single domain.")
+    parser.add_argument("-o", type=str, choices=['xls', 'stdout'], required=True, help="Output format stdout or xls")
     options = parser.parse_args()
     if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofy.py -d [DOMAIN]` OR `spoofy.py -iL [DOMAIN_LIST] Optional: -t [THREADS]`")
     domains = []
@@ -178,4 +201,4 @@ if __name__ == "__main__":
         except IOError: error("File doesnt exist or cannot be read.")
     if options.d:
         domains.append(options.d)
-    orchestrator(domains)
+    orchestrator(domains, options.o)
