@@ -62,4 +62,4 @@ Tool was inspired by [Bishop Fox's](https://github.com/BishopFox/) project calle
 
 ## LICENSE
 
-This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) file for details
+This project is licensed under the Creative Commons Zero v1.0 Universal - see the [LICENSE](LICENSE) file for details
