@@ -171,7 +171,7 @@ def orchestrator(domains, output):
             else:
                 printer(domain, subdomain, dns_server, spf_record, spf_all,
                  spf_includes, dmarc_record, p, pct, aspf, sp, fo, rua, spoofable) 
-        except: error(f"Domain {domain} format cannot be interpreted.")
+        except: error(f"Domain {domain} is offline or format cannot be interpreted.")
 
 
 
