@@ -183,7 +183,7 @@ if __name__ == "__main__":
     group.add_argument("-d", type=str, required=False, help="Provide an single domain.")
     parser.add_argument("-o", type=str, choices=['xls', 'stdout'], required=True, help="Output format stdout or xls")
     options = parser.parse_args()
-    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofy.py -d [DOMAIN]` OR `spoofy.py -iL [DOMAIN_LIST] Optional: -t [THREADS]`")
+    if not any(vars(options).values()): parser.error("No arguments provided. Usage: `spoofy.py -d [DOMAIN] -o [stdout or xls]` OR `spoofy.py -iL [DOMAIN_LIST] -o [stdout or xls]`")
     domains = []
     if options.iL:
         try:
