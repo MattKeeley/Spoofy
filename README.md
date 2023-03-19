@@ -10,6 +10,7 @@ Spoofy
 [![forthebadge](https://forthebadge.com/images/badges/contains-tasty-spaghetti-code.svg)](https://www.thewholesomedish.com/spaghetti/)
 [![forthebadge](https://forthebadge.com/images/badges/it-works-why.svg)](https://www.youtube.com/watch?v=kyti25ol438)
 
+
 ## WHAT
 `Spoofy` is a program that checks if a list of domains can be spoofed based on SPF and DMARC records. You may be asking, "Why do we need another tool that can check if a domain can be spoofed?"
 
@@ -18,6 +19,9 @@ Well, Spoofy is different and here is why:
 > 2. Accurate bulk lookups
 > 3. Custom, manually tested spoof logic (No guessing or speculating, real world test results) 
 > 4. SPF lookup counter
+
+## PASSING TESTS
+[![Spoofy CI](https://github.com/MattKeeley/Spoofy/actions/workflows/ci.yml/badge.svg)](https://github.com/MattKeeley/Spoofy/actions/workflows/ci.yml)
 
 ## HOW TO USE
 `Spoofy` requires **Python 3+**. Python 2 is not supported. Usage is shown below:
