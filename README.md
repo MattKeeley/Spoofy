@@ -59,7 +59,7 @@ Lead / Only programmer & spoofability logic comprehension upgrades & lookup resi
 
 DMARC, SPF, DNS insights & Spoofability table creation/confirmation/testing & application accuracy/quality assurance: calamity#6391 / [eman-ekaf](https://github.com/eman-ekaf)
 
-New logo: cobracode#0398
+Logo: cobracode#0398
 
 Tool was inspired by [Bishop Fox's](https://github.com/BishopFox/) project called [spoofcheck](https://github.com/BishopFox/spoofcheck/).
 
