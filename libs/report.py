@@ -1,7 +1,6 @@
 from colorama import Fore, Style
 from colorama import init as color_init
-import pandas as pd
-import os
+import os, pandas as pd
 
 color_init()
 
@@ -41,8 +40,9 @@ def write_to_excel(data):
 
 
 def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf, sp, fo, rua, spoofable):
-    """
-    This function takes a list of domains and an output format (either 'xls' or 'stdout') as arguments. It processes each domain, collects its relevant details, and outputs the results to the console or an Excel file.
+    """This function is a utility function that takes in various parameters related to the 
+    results of DMARC and SPF checks and outputs the results to the console in a human-readable format.
+    
     Printer ID Handler:
     0: Indicates that spoofing is possible for the domain.
     1: Indicates that subdomain spoofing is possible for the domain.

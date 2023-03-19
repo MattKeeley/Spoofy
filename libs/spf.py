@@ -1,7 +1,6 @@
 import re
 import dns.resolver
 
-
 def get_spf_record(domain, dns_server):
     """Returns the SPF record for a given domain."""
     try:
@@ -13,9 +12,8 @@ def get_spf_record(domain, dns_server):
                 spf_record = str(record).replace('"', '')
                 return spf_record
         return None
-    except Exception as e:
+    except:
         return None
-
 
 def get_spf_all_string(spf_record):
     """Returns the string value of the all mechanism in the SPF record."""
@@ -26,9 +24,6 @@ def get_spf_all_string(spf_record):
         return '2many'
     else:
         return None
-
-
-
 
 def get_spf_includes(domain, count=0):
     """Returns the number of includes in the SPF record for a given domain."""
