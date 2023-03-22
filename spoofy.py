@@ -30,7 +30,6 @@ def process_domain(domain, output):
             with print_lock:
                 report.printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf,
                         sp, fo, rua, spoofable)
-                print() # padding
     except:
         report.output_error(f"Domain {domain} is offline or format cannot be interpreted.")
 

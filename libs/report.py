@@ -17,7 +17,7 @@ def output_indifferent(line):
     print(Fore.BLUE + Style.BRIGHT + "[*]" + Style.RESET_ALL, line)
 
 def output_error(line):
-    print(Fore.RED + Style.BRIGHT + "[-] !!! " + Style.NORMAL, line, Style.BRIGHT + "!!!")
+    print(Fore.RED + Style.BRIGHT + "[-] !!! " + Style.NORMAL, line, Style.BRIGHT + "!!!\n")
 
 def output_info(line):
     print(Fore.WHITE + Style.BRIGHT + "[*]" + Style.RESET_ALL, line)
