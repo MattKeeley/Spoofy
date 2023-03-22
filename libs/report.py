@@ -51,7 +51,8 @@ def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dm
     4: Indicates that spoofing might be possible (mailbox dependent) for the domain.
     5: Indicates that organizational domain spoofing may be possible for the domain.
     6: Indicates that subdomain spoofing might be possible (mailbox dependent) for the domain.
-    7: Indicates that spoofing is not possible for the domain.
+    7: Indicates that subdomain spoofing is possible, and organizational domain spoofing might be possible.
+    8: Indicates that spoofing is not possible for the domain.
     """  
     output_indifferent(f"Domain: {domain}")
     output_indifferent(f"Is subdomain: {subdomain}")
@@ -80,8 +81,9 @@ def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dm
     else:
         output_warning("No DMARC record found.")
 
-    if spoofable in [0, 1, 2, 3, 4, 5, 6, 7]:
-        if spoofable == 7:
+    if spoofable in [0, 1, 2, 3, 4, 5, 6, 7, 8]:
+        if spoofable == 8:
             output_bad("Spoofing not possible for " + domain)
         else:
-            output_good("Spoofing possible for " + domain if spoofable == 0 else "Subdomain spoofing possible for " + domain if spoofable == 1 else "Organizational domain spoofing possible for " + domain if spoofable == 2 else "Spoofing might be possible for " + domain if spoofable == 3 else "Spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 4 else "Organizational domain spoofing may be possible for " + domain if spoofable == 5 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 6 else "")
+            output_good("Spoofing possible for " + domain if spoofable == 0 else "Subdomain spoofing possible for " + domain if spoofable == 1 else "Organizational domain spoofing possible for " + domain if spoofable == 2 else "Spoofing might be possible for " + domain if spoofable == 3 else "Spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 4 else "Organizational domain spoofing may be possible for " + domain if spoofable == 5 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 6 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 7 else "")
+    print() # padding
