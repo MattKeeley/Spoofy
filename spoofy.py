@@ -31,7 +31,8 @@ def process_domain(domain, output):
                 report.printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf,
                         sp, fo, rua, spoofable)
     except:
-        report.output_error(f"Domain {domain} is offline or format cannot be interpreted.")
+        with print_lock:
+            report.output_error(f"Domain {domain} is offline or format cannot be interpreted.")
 
 def process_domains(domains, output):
     threads = []
