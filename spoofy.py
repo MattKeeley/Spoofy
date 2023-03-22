@@ -1,34 +1,53 @@
 #! /usr/bin/env python3
-import argparse, tldextract
+import argparse, tldextract, threading
 from libs import dmarc, dns, logic, spf, report
 
-def process_domains(domains, output):
+print_lock = threading.Lock()
+
+def process_domain(domain, output):
     """This function takes a list of domains and an output format (either 'xls' or 'stdout')
       as arguments. It processes each domain, collects its relevant details, 
       and outputs the results to the console or an Excel file."""
-    for domain in domains:
-        try:
-            dns_server = spf_record = dmarc_record = None
-            spf_all = spf_includes = p = pct = aspf = sp = fo = rua = None
-            subdomain = bool(tldextract.extract(domain).subdomain)
-            dns_server, spf_record, dmarc_record = dns.get_dns_server(domain)
-            if spf_record:
-                spf_all = spf.get_spf_all_string(spf_record)
-                spf_includes = spf.get_spf_includes(domain)
-            if dmarc_record:
-                p, pct, aspf, sp, fo, rua = dmarc.get_dmarc_details(dmarc_record)
-            spoofable = logic.is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct)
-            if output == "xls":
+    try:
+        dns_server = spf_record = dmarc_record = None
+        spf_all = spf_includes = p = pct = aspf = sp = fo = rua = None
+        subdomain = bool(tldextract.extract(domain).subdomain)
+        dns_server, spf_record, dmarc_record = dns.get_dns_server(domain)
+        if spf_record:
+            spf_all = spf.get_spf_all_string(spf_record)
+            spf_includes = spf.get_spf_includes(domain)
+        if dmarc_record:
+            p, pct, aspf, sp, fo, rua = dmarc.get_dmarc_details(dmarc_record)
+        spoofable = logic.is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct)
+        if output == "xls":
+            with print_lock:
                 data = [{'DOMAIN': domain, 'SUBDOMAIN': subdomain, 'SPF': spf_record, 'SPF MULTIPLE ALLS': spf_all,
                         'SPF TOO MANY INCLUDES': spf_includes, 'DMARC': dmarc_record, 'DMARC POLICY': p,
                         'DMARC PCT': pct, 'DMARC ASPF': aspf, 'DMARC SP': sp, 'DMARC FORENSIC REPORT': fo,
                         'DMARC AGGREGATE REPORT': rua, 'SPOOFING POSSIBLE': spoofable}]
                 report.write_to_excel(data)             
-            else:
+        else:
+            with print_lock:
                 report.printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf,
                         sp, fo, rua, spoofable)
-        except:
+    except:
+        with print_lock:
             report.output_error(f"Domain {domain} is offline or format cannot be interpreted.")
+
+
+def process_domains(domains, output):
+    """
+    This function is for multithreading woot woot!
+    """
+    threads = []
+
+    for domain in domains:
+        thread = threading.Thread(target=process_domain, args=(domain, output))
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
