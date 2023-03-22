@@ -34,7 +34,6 @@ def process_domain(domain, output):
         with print_lock:
             report.output_error(f"Domain {domain} is offline or format cannot be interpreted.")
 
-
 def process_domains(domains, output):
     """
     This function is for multithreading woot woot!
