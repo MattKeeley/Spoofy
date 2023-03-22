@@ -35,6 +35,9 @@ def process_domain(domain, output):
             report.output_error(f"Domain {domain} is offline or format cannot be interpreted.")
 
 def process_domains(domains, output):
+    """
+    This function is for multithreading woot woot!
+    """
     threads = []
 
     for domain in domains:
