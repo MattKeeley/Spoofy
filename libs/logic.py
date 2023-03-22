@@ -1,7 +1,17 @@
 def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
     """This function takes in DMARC and SPF data for a domain, as well as subdomain policy and percentage options,
       and determines if the domain is vulnerable to email spoofing. The function returns an integer value indicating
-      the class of vulnerability. A table of what each number means can be found in the /templates/report.py file."""
+      the class of vulnerability. 
+      ID Handler:
+      0: Indicates that spoofing is possible for the domain.
+      1: Indicates that subdomain spoofing is possible for the domain.
+      2: Indicates that organizational domain spoofing is possible for the domain.
+      3: Indicates that spoofing might be possible for the domain.
+      4: Indicates that spoofing might be possible (mailbox dependent) for the domain.
+      5: Indicates that organizational domain spoofing may be possible for the domain.
+      6: Indicates that subdomain spoofing might be possible (mailbox dependent) for the domain.
+      7: Indicates that spoofing is not possible for the domain.
+    """ 
     try:
         if pct and int(pct) != 100: return 3
         elif spf_record is None:
