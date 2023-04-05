@@ -19,7 +19,7 @@ def get_spf_record(domain, dns_server):
 
 def get_spf_all_string(spf_record):
     """Returns the string value of the all mechanism in the SPF record."""
-    all_matches = re.findall(r'[-~?]?all', spf_record)
+    all_matches = re.findall(r'[-~?] ?a ?l ?l', spf_record)
     if len(all_matches) == 1:
         return all_matches[0]
     elif len(all_matches) > 1:
