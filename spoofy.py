@@ -62,9 +62,10 @@ if __name__ == "__main__":
     group.add_argument("-iL", type=str, required=False,
                        help="Provide an input list.")
     group.add_argument("-d", type=str, required=False,
-                       help="Provide an single domain.")
-    parser.add_argument(
-        "-o", type=str, choices=['xls', 'stdout'], required=True, help="Output format stdout or xls")
+                       help="Provide a single domain.")
+    parser.add_argument("-o", type=str, choices=['xls', 'stdout'],
+                        default='stdout', help="Output format: stdout or xls (default: stdout)")
+    options = parser.parse_args()
     options = parser.parse_args()
     if not any(vars(options).values()):
         parser.error(
