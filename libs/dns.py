@@ -14,7 +14,10 @@ def get_soa_record(domain):
     if query:
         for data in query:
             dns_server = str(data.mname)
-        return socket.gethostbyname(dns_server)
+        try:
+            return socket.gethostbyname(dns_server)
+        except:
+            return None
     return None
 
 
