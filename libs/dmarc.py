@@ -2,6 +2,9 @@ import dns.resolver, tldextract
 
 def get_dmarc_record(domain, dns_server):
     """Returns the DMARC record for a given domain."""
+    subdomain = tldextract.extract(domain).registered_domain
+    if subdomain != domain:
+        return get_dmarc_record(subdomain, dns_server)
     try:
         resolver = dns.resolver.Resolver()
         resolver.nameservers = [dns_server]
