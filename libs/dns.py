@@ -5,7 +5,10 @@ def get_soa_record(domain):
     """Returns the SOA record of a given domain."""
     resolver = dns.resolver.Resolver()
     resolver.nameservers = ['1.1.1.1']
-    query = resolver.resolve(domain, 'SOA')
+    try:
+        query = resolver.resolve(domain, 'SOA')
+    except:
+        return None
     if query:
         for data in query:
             dns_server = str(data.mname)
