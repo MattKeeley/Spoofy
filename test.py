@@ -43,7 +43,7 @@ class TestSpoofy(unittest.TestCase):
         unittest.TestCase().assertEqual(logic.is_spoofable('test_8.com', 'none', 's', 'v=spf1 include:fakest.domain.com', '~all', 1, 'quarantine', 100), 8)
 
     def test_possible_bug_fix1(self):
-        unittest.TestCase().assertEqual(logic.is_spoofable('sub.test_9.com', 'none', None, None, None, None, None, None), 0)
+        unittest.TestCase().assertEqual(logic.is_spoofable('sub.test_9.com', None, None, None, None, None, None, None), 0)
 
 if __name__ == '__main__':
     unittest.main()
