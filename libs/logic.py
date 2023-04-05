@@ -30,12 +30,12 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
             elif p == "none" and (aspf == "r" or aspf is None) and sp is None: return 4
             elif p == "none" and aspf == "r" and (sp == "reject" or sp == "quarentine"): return 2
             elif p == "none" and aspf is None and (sp == "reject" or sp == "quarentine"): return 5
-            elif p == "none" and aspf is None and sp == "none": return 8
+            elif p == "none" and aspf is None and sp == "none": return 7
             else: return 8
         elif spf_all == "~all":
             if p == "none" and sp == "reject" or sp == "quarentine": return 2
             elif p == "none" and sp is None: return 0
-            elif p == "none" and sp == "none": return 8
+            elif p == "none" and sp == "none": return 7
             elif (p == "reject" or p == "quarentine") and aspf is None and sp == "none": return 1
             elif (p == "reject" or p == "quarentine") and aspf and sp == "none": return 1
             else: return 8
@@ -43,8 +43,8 @@ def is_spoofable(domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
             if (p == "reject" or p == "quarentine") and aspf and sp == "none": return 6
             elif (p == "reject" or p == "quarentine") and aspf is None and sp == "none": return 6
             elif p == "none" and aspf == "r" and sp is None:  return 0
-            elif p == "none" and aspf == "r" and sp == "none":  return 8
-            elif p == "none" and aspf == "s" or None and sp == "none": return 8
+            elif p == "none" and aspf == "r" and sp == "none":  return 7
+            elif p == "none" and aspf == "s" or None and sp == "none": return 7
             elif p == "none" and aspf == "s" or None and sp is None:  return 6
             elif p == "none" and aspf and (sp == "reject" or sp == "quarentine"):return 5
             elif p == "none" and aspf is None and sp  == "reject": return 5
