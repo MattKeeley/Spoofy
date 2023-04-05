@@ -45,27 +45,15 @@ def process_domains(domains, output):
     """
     This function is for multithreading woot woot!
     """
-    num_threads = os.cpu_count()
     threads = []
-    num_domains = len(domains)
-    num_threads = min(num_threads, num_domains)
 
-    for i in range(num_threads):
-        start = i * num_domains // num_threads
-        end = (i + 1) * num_domains // num_threads
-
-        thread = threading.Thread(
-            target=process_domains_worker, args=(domains[start:end], output))
+    for domain in domains:
+        thread = threading.Thread(target=process_domain, args=(domain, output))
         thread.start()
         threads.append(thread)
 
     for thread in threads:
         thread.join()
-
-
-def process_domains_worker(domains, output):
-    for domain in domains:
-        process_domain(domain, output)
 
 
 if __name__ == "__main__":
