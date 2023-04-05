@@ -1,6 +1,7 @@
 import re
 import dns.resolver
 
+
 def get_spf_record(domain, dns_server):
     """Returns the SPF record for a given domain."""
     try:
@@ -15,6 +16,7 @@ def get_spf_record(domain, dns_server):
     except:
         return None
 
+
 def get_spf_all_string(spf_record):
     """Returns the string value of the all mechanism in the SPF record."""
     all_matches = re.findall(r'[-~?] ?a ?l ?l', spf_record)
@@ -25,9 +27,11 @@ def get_spf_all_string(spf_record):
     else:
         return None
 
+
 def get_spf_includes(domain, count=0):
     """Returns the number of includes in the SPF record for a given domain."""
-    if count > 10: return count
+    if count > 10:
+        return count
     try:
         spf_record = get_spf_record(domain, '1.1.1.1')
         if spf_record:
@@ -41,5 +45,5 @@ def get_spf_includes(domain, count=0):
                     count = get_spf_includes(url, count + 1)
     except:
         pass
-        #print("Could not find SPF record for " + domain)
+        # print("Could not find SPF record for " + domain)
     return count
