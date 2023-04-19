@@ -91,7 +91,7 @@ def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dm
         output_info(
             f"Found DMARC subdomain policy: {sp}" if sp else "No DMARC subdomain policy found.")
         output_indifferent(
-            f"Forensics reports will be sent: {fo}" if fo else "No DMARC foresnic report location found.")
+            f"Forensics reports will be sent: {fo}" if fo else "No DMARC forensics report location found.")
         output_indifferent(
             f"Aggregate reports will be sent to: {rua}" if rua else "No DMARC aggregate report location found.")
     else:
