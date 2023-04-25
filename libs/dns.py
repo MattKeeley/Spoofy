@@ -42,7 +42,7 @@ def get_dns_server(domain):
         if dmarc_record:
             partial_dmarc_record = dmarc_record
 
-    return '9.9.9.9', partial_spf_record, partial_dmarc_record
+    return '1.1.1.1', partial_spf_record, partial_dmarc_record
 
 
 def get_txt_record(domain, record_type):
