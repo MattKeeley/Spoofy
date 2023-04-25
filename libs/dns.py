@@ -24,22 +24,25 @@ def get_soa_record(domain):
 def get_dns_server(domain):
     """Finds the DNS server that serves the domain and returns it, along with any SPF or DMARC records."""
     SOA = get_soa_record(domain)
+    spf_record = dmarc_record = partial_spf_record = partial_dmarc_record = None
+
     if SOA:
         spf_record = spf.get_spf_record(domain, SOA)
         dmarc_record = dmarc.get_dmarc_record(domain, SOA)
-        if (spf_record is not None) and (dmarc_record is not None):
+        if spf_record and dmarc_record:
             return SOA, spf_record, dmarc_record
-    spf_record = spf.get_spf_record(domain, '1.1.1.1')
-    dmarc_record = dmarc.get_dmarc_record(domain, '1.1.1.1')
-    if (spf_record is not None) and (dmarc_record is not None):
-        return '1.1.1.1', spf_record, dmarc_record
-    spf_record = spf.get_spf_record(domain, '8.8.8.8')
-    dmarc_record = dmarc.get_dmarc_record(domain, '8.8.8.8')
-    if (spf_record is not None) and (dmarc_record is not None):
-        return '8.8.8.8', spf_record, dmarc_record
-    # No SPF or DMARC record found using 3 different DNS providers.
-    # Defaulting back to Cloudflare
-    return '1.1.1.1', spf_record, dmarc_record
+
+    for ip_address in ['1.1.1.1', '8.8.8.8', '9.9.9.9']:
+        spf_record = spf.get_spf_record(domain, ip_address)
+        dmarc_record = dmarc.get_dmarc_record(domain, ip_address)
+        if spf_record and dmarc_record:
+            return ip_address, spf_record, dmarc_record
+        if spf_record:
+            partial_spf_record = spf_record
+        if dmarc_record:
+            partial_dmarc_record = dmarc_record
+
+    return '1.1.1.1', partial_spf_record, partial_dmarc_record
 
 
 def get_txt_record(domain, record_type):
