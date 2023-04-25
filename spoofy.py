@@ -16,7 +16,8 @@ def process_domain(domain, output):
         dns_server = spf_record = dmarc_record = None
         spf_all = spf_includes = p = pct = aspf = sp = fo = rua = None
         subdomain = bool(tldextract.extract(domain).subdomain)
-        dns_server, spf_record, dmarc_record = dns.get_dns_server(domain)
+        with print_lock:
+            dns_server, spf_record, dmarc_record = dns.get_dns_server(domain)
         if spf_record:
             spf_all = spf.get_spf_all_string(spf_record)
             spf_includes = spf.get_spf_includes(domain)
