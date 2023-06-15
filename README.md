@@ -57,9 +57,9 @@ After the initial testing using Microsoft 365, some combinations were retested u
 
 Lead / Only programmer & spoofability logic comprehension upgrades & lookup resiliency system / fix (main issue with other tools) & multithreading & feature additions: [Matt Keeley](https://www.linkedin.com/in/mattrkeeley/)
 
-DMARC, SPF, DNS insights & Spoofability table creation/confirmation/testing & application accuracy/quality assurance: calamity#6391 / [eman-ekaf](https://github.com/eman-ekaf)
+DMARC, SPF, DNS insights & Spoofability table creation/confirmation/testing & application accuracy/quality assurance: calamity.email / [eman-ekaf](https://github.com/eman-ekaf)
 
-Logo: cobracode#0398
+Logo: cobracode
 
 Tool was inspired by [Bishop Fox's](https://github.com/BishopFox/) project called [spoofcheck](https://github.com/BishopFox/spoofcheck/).
 
