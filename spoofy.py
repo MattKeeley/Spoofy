@@ -17,7 +17,7 @@ def process_domain(domain, output):
         spf_all = spf_includes = p = pct = aspf = sp = fo = rua = None
         subdomain = bool(tldextract.extract(domain).subdomain)
         with print_lock:
-            dns_server, spf_record, dmarc_record = dns.get_dns_server(domain)
+            dns_server, spf_record, dmarc_record, bimi_record = dns.get_dns_server(domain)
         if spf_record:
             spf_all = spf.get_spf_all_string(spf_record)
             spf_includes = spf.get_spf_includes(domain)
@@ -30,13 +30,14 @@ def process_domain(domain, output):
                 data = [{'DOMAIN': domain, 'SUBDOMAIN': subdomain, 'SPF': spf_record, 'SPF MULTIPLE ALLS': spf_all,
                         'SPF TOO MANY INCLUDES': spf_includes, 'DMARC': dmarc_record, 'DMARC POLICY': p,
                          'DMARC PCT': pct, 'DMARC ASPF': aspf, 'DMARC SP': sp, 'DMARC FORENSIC REPORT': fo,
-                         'DMARC AGGREGATE REPORT': rua, 'SPOOFING POSSIBLE': spoofable}]
+                         'DMARC AGGREGATE REPORT': rua, 'BIMI_RECORD': bimi_record, 'SPOOFING POSSIBLE': spoofable}]
                 report.write_to_excel(data)
         else:
             with print_lock:
                 report.printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf,
-                               sp, fo, rua, spoofable)
-    except:
+                               sp, fo, rua, bimi_record, spoofable)
+    except Exception as e:
+        raise e
         with print_lock:
             report.output_error(
                 f"Domain {domain} is offline or format cannot be interpreted.")
