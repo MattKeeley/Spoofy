@@ -104,6 +104,13 @@ def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dm
         if spoofable == 8:
             output_bad("Spoofing not possible for " + domain)
         else:
-            output_good("Spoofing possible for " + domain if spoofable == 0 else "Subdomain spoofing possible for " + domain if spoofable == 1 else "Organizational domain spoofing possible for " + domain if spoofable == 2 else "Spoofing might be possible for " + domain if spoofable == 3 else "Spoofing might be possible (Mailbox dependant) for " +
-                        domain if spoofable == 4 else "Organizational domain spoofing may be possible for " + domain if spoofable == 5 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 6 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 7 else "")
+            output_good("Spoofing possible for " + domain 
+                        if spoofable == 0 else "Subdomain spoofing possible for " + domain 
+                        if spoofable == 1 else "Organizational domain spoofing possible for " + domain 
+                        if spoofable == 2 else "Spoofing might be possible for " + domain 
+                        if spoofable == 3 else "Spoofing might be possible (Mailbox dependant) for " + domain 
+                        if spoofable == 4 else "Organizational domain spoofing may be possible for " + domain 
+                        if spoofable == 5 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain 
+                        if spoofable == 6 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain 
+                        if spoofable == 7 else "")
     print()  # padding
