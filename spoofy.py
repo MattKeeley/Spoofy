@@ -3,7 +3,7 @@ import argparse
 import tldextract
 import threading
 import os
-from libs import dmarc, dns, logic, spf, report
+from libs import bimi, dmarc, dns, logic, spf, report
 
 print_lock = threading.Lock()
 
@@ -14,29 +14,45 @@ def process_domain(domain, output):
       and outputs the results to the console or an Excel file."""
     try:
         dns_server = spf_record = dmarc_record = None
-        spf_all = spf_includes = p = pct = aspf = sp = fo = rua = None
+        spf_all = spf_includes = p = pct = aspf = sp = fo = rua = vbimi = location = authority = None
         subdomain = bool(tldextract.extract(domain).subdomain)
         with print_lock:
-            dns_server, spf_record, dmarc_record = dns.get_dns_server(domain)
+            dns_server, spf_record, dmarc_record, bimi_record = dns.get_dns_server(domain)
         if spf_record:
             spf_all = spf.get_spf_all_string(spf_record)
             spf_includes = spf.get_spf_includes(domain)
         if dmarc_record:
             p, pct, aspf, sp, fo, rua = dmarc.get_dmarc_details(dmarc_record)
+        if bimi_record:
+            vbimi, location, authority = bimi.get_bimi_details(bimi_record)
         spoofable = logic.is_spoofable(
             domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct)
         if output == "xls":
             with print_lock:
-                data = [{'DOMAIN': domain, 'SUBDOMAIN': subdomain, 'SPF': spf_record, 'SPF MULTIPLE ALLS': spf_all,
-                        'SPF TOO MANY INCLUDES': spf_includes, 'DMARC': dmarc_record, 'DMARC POLICY': p,
-                         'DMARC PCT': pct, 'DMARC ASPF': aspf, 'DMARC SP': sp, 'DMARC FORENSIC REPORT': fo,
-                         'DMARC AGGREGATE REPORT': rua, 'SPOOFING POSSIBLE': spoofable}]
+                data = [{'DOMAIN': domain, 
+                        'SUBDOMAIN': subdomain, 
+                        'SPF': spf_record, 
+                        'SPF MULTIPLE ALLS': spf_all,
+                        'SPF TOO MANY INCLUDES': spf_includes, 
+                        'DMARC': dmarc_record, 
+                        'DMARC POLICY': p,
+                        'DMARC PCT': pct, 
+                        'DMARC ASPF': aspf, 
+                        'DMARC SP': sp, 
+                        'DMARC FORENSIC REPORT': fo,
+                        'DMARC AGGREGATE REPORT': rua, 
+                        'BIMI_RECORD': bimi_record, 
+                        'BIMI_VERSION': vbimi,
+                        'BIMI_LOCATION': location,
+                        'BIMI_AUTHORITY': authority,
+                        'SPOOFING POSSIBLE': spoofable}]
                 report.write_to_excel(data)
         else:
             with print_lock:
                 report.printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf,
-                               sp, fo, rua, spoofable)
-    except:
+                               sp, fo, rua, bimi_record, vbimi, location, authority, spoofable)
+    except Exception as e:
+        raise e
         with print_lock:
             report.output_error(
                 f"Domain {domain} is offline or format cannot be interpreted.")

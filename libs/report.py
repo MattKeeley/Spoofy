@@ -48,7 +48,7 @@ def write_to_excel(data):
         df.to_excel(file_name, index=False)
 
 
-def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf, sp, fo, rua, spoofable):
+def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf, sp, fo, rua, bimi_record, vbimi, location, authority, spoofable):
     """This function is a utility function that takes in various parameters related to the 
     results of DMARC and SPF checks and outputs the results to the console in a human-readable format.
 
@@ -96,11 +96,24 @@ def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dm
             f"Aggregate reports will be sent to: {rua}" if rua else "No DMARC aggregate report location found.")
     else:
         output_warning("No DMARC record found.")
-
+    
+    if(bimi_record):
+        output_info(f"BIMI record : {bimi_record}")
+        output_info(f"BIMI version : {vbimi}")
+        output_info(f"BIMI location : {location}")
+        output_info(f"BIMI authority : {authority}")
+    
     if spoofable in [0, 1, 2, 3, 4, 5, 6, 7, 8]:
         if spoofable == 8:
             output_bad("Spoofing not possible for " + domain)
         else:
-            output_good("Spoofing possible for " + domain if spoofable == 0 else "Subdomain spoofing possible for " + domain if spoofable == 1 else "Organizational domain spoofing possible for " + domain if spoofable == 2 else "Spoofing might be possible for " + domain if spoofable == 3 else "Spoofing might be possible (Mailbox dependant) for " +
-                        domain if spoofable == 4 else "Organizational domain spoofing may be possible for " + domain if spoofable == 5 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 6 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain if spoofable == 7 else "")
+            output_good("Spoofing possible for " + domain 
+                        if spoofable == 0 else "Subdomain spoofing possible for " + domain 
+                        if spoofable == 1 else "Organizational domain spoofing possible for " + domain 
+                        if spoofable == 2 else "Spoofing might be possible for " + domain 
+                        if spoofable == 3 else "Spoofing might be possible (Mailbox dependant) for " + domain 
+                        if spoofable == 4 else "Organizational domain spoofing may be possible for " + domain 
+                        if spoofable == 5 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain 
+                        if spoofable == 6 else "Subdomain spoofing might be possible (Mailbox dependant) for " + domain 
+                        if spoofable == 7 else "")
     print()  # padding
