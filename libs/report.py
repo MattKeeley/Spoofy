@@ -48,7 +48,7 @@ def write_to_excel(data):
         df.to_excel(file_name, index=False)
 
 
-def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf, sp, fo, rua, bimi_record, spoofable):
+def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf, sp, fo, rua, bimi_record, vbimi, location, authority, spoofable):
     """This function is a utility function that takes in various parameters related to the 
     results of DMARC and SPF checks and outputs the results to the console in a human-readable format.
 
@@ -99,7 +99,10 @@ def printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dm
     
     if(bimi_record):
         output_info(f"BIMI record : {bimi_record}")
-
+        output_info(f"BIMI version : {vbimi}")
+        output_info(f"BIMI location : {location}")
+        output_info(f"BIMI authority : {authority}")
+    
     if spoofable in [0, 1, 2, 3, 4, 5, 6, 7, 8]:
         if spoofable == 8:
             output_bad("Spoofing not possible for " + domain)
