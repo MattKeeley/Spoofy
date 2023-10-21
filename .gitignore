@@ -133,3 +133,6 @@ dmypy.json
 
 # Xls files 
 *.xls
+
+# ignore mac os system extension
+.DS_Store
