@@ -130,3 +130,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Xls files 
+*.xls
+
+# ignore mac os system extension
+.DS_Store
