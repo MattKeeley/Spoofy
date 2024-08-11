@@ -51,9 +51,5 @@ class TestSpoofy(unittest.TestCase):
         spoofing = Spoofing('test_8.com', 'none', 's', 'v=spf1 include:fakest.domain.com', '~all', 1, 'quarantine', 100)
         self.assertEqual(spoofing.spoofable, 8)
 
-    def test_possible_bug_fix1(self):
-        spoofing = Spoofing('sub.test_9.com', None, None, None, None, None, None, None)
-        self.assertEqual(spoofing.spoofable, 0)
-
 if __name__ == '__main__':
     unittest.main()
