@@ -37,7 +37,7 @@ class DMARC:
             if self.dns_server:
                 resolver.nameservers = [self.dns_server]
             dmarc = resolver.resolve(f"_dmarc.{domain}", "TXT")
-        except:
+        except Exception:
             return None
 
         for dns_data in dmarc:

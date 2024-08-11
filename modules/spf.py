@@ -28,7 +28,7 @@ class SPF:
                 if 'v=spf1' in str(record):
                     return str(record).replace('"', '')
             return None
-        except:
+        except Exception:
             return None
 
     def get_spf_all_string(self):
@@ -56,7 +56,7 @@ class SPF:
                         include_spf = SPF(included_domain, self.dns_server)
                         count += include_spf.get_spf_includes(count)
             return count
-        except:
+        except Exception:
             return count
 
     def __str__(self):

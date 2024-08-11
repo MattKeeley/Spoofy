@@ -24,7 +24,7 @@ class DNS:
         resolver.nameservers = ['1.1.1.1']
         try:
             query = resolver.resolve(self.domain, 'SOA')
-        except:
+        except Exception:
             return
         if query:
             for data in query:
@@ -32,7 +32,7 @@ class DNS:
             try:
                 self.soa_record = socket.gethostbyname(dns_server)
                 self.dns_server = self.soa_record
-            except:
+            except Exception:
                 self.soa_record = None
 
     def get_dns_server(self):
@@ -61,7 +61,7 @@ class DNS:
         try:
             query = resolver.query(self.domain, record_type)
             return str(query[0])
-        except:
+        except Exception:
             return None
 
     def __str__(self):

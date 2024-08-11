@@ -89,7 +89,7 @@ class Spoofing:
                     return 8
             else:
                 return 8
-        except:
+        except Exception:
             print("If you hit this error message, Open an issue with your testcase.")
             return 8
 

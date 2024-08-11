@@ -27,7 +27,7 @@ class BIMI:
                 if 'v=BIMI' in str(record):
                     return record
             return None
-        except:
+        except Exception:
             return None
 
     def get_bimi_version(self):
