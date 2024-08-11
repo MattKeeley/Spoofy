@@ -19,7 +19,7 @@ def output_message(symbol, message, level="info"):
     color = colors.get(level, Fore.WHITE + Style.BRIGHT)
     print(color + f"{symbol} {message}" + Style.RESET_ALL)
 
-def write_to_excel(data, file_name="report.xlsx"):
+def write_to_excel(data, file_name="output.xlsx"):
     """Writes a DataFrame of data to an Excel file, appending if the file exists."""
     if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
         existing_df = pd.read_excel(file_name)
@@ -31,7 +31,7 @@ def write_to_excel(data, file_name="report.xlsx"):
 
 def printer(**kwargs):
     """Utility function to print the results of DMARC, SPF, and BIMI checks in the original format."""
-    domain = kwargs.get('DOMAIN_TYPE')
+    domain = kwargs.get('DOMAIN')
     subdomain = kwargs.get('DOMAIN_TYPE') == 'subdomain'
     dns_server = kwargs.get('DNS_SERVER')
     spf_record = kwargs.get('SPF')
