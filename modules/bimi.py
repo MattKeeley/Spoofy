@@ -1,45 +1,59 @@
 # modules/bimi.py
+
 import dns.resolver
-def get_bimi_record(domain, dns_server):
-    """Returns the BIMI record for a given domain."""
-    try:
-        resolver = dns.resolver.Resolver()
-        resolver.nameservers = [dns_server, '1.1.1.1', '8.8.8.8']
-        query_result = resolver.resolve('default._bimi.' + domain, 'TXT')
-        for record in query_result:
-            if 'v=BIMI' in str(record):
-                return record
-        return None
-    except:
+
+class BIMI:
+    def __init__(self, domain, dns_server=None):
+        self.domain = domain
+        self.dns_server = dns_server
+        self.bimi_record = self.get_bimi_record()
+        self.version = None
+        self.location = None
+        self.authority = None
+
+        if self.bimi_record:
+            self.version = self.get_bimi_version()
+            self.location = self.get_bimi_location()
+            self.authority = self.get_bimi_authority()
+
+    def get_bimi_record(self):
+        """Returns the BIMI record for the domain."""
+        try:
+            resolver = dns.resolver.Resolver()
+            if self.dns_server:
+                resolver.nameservers = [self.dns_server]
+            bimi = resolver.resolve(f'default._bimi.{self.domain}', 'TXT')
+            for record in bimi:
+                if 'v=BIMI' in str(record):
+                    return record
+            return None
+        except:
+            return None
+
+    def get_bimi_version(self):
+        """Returns the version value from a BIMI record."""
+        if "v=" in str(self.bimi_record):
+            return str(self.bimi_record).split("v=")[1].split(";")[0]
         return None
 
+    def get_bimi_location(self):
+        """Returns the location value from a BIMI record."""
+        if "l=" in str(self.bimi_record):
+            return str(self.bimi_record).split("l=")[1].split(";")[0]
+        return None
 
-def get_bimi_details(bimi_record):
-    """Returns a tuple containing policy, pct, aspf, subdomain policy,
-    forensic report uri, and aggregate report uri from a BIMI record"""
-    version = get_bimi_version(bimi_record)
-    location = get_bimi_location(bimi_record)
-    authority = get_bimi_authority(bimi_record)
-    return version, location, authority
-    
-    
-def get_bimi_version(bimi_record):
-    """Returns the version value from a BIMI record."""
-    if "v=" in str(bimi_record):
-        return str(bimi_record).split("v=")[1].split(";")[0]
-    else:
+    def get_bimi_authority(self):
+        """Returns the authority value from a BIMI record."""
+        if "a=" in str(self.bimi_record):
+            return str(self.bimi_record).split("a=")[1].split(";")[0]
         return None
-        
-def get_bimi_location(bimi_record):
-    """Returns the location value from a BIMI record."""
-    if "l=" in str(bimi_record):
-        return str(bimi_record).split("l=")[1].split(";")[0]
-    else:
-        return None
-        
-def get_bimi_authority(bimi_record):
-    """Returns the authority value from a BIMI record."""
-    if "a=" in str(bimi_record):
-        return str(bimi_record).split("a=")[1].split(";")[0]
-    else:
-        return None
+
+    def get_bimi_details(self):
+        """Returns a tuple containing version, location, and authority from a BIMI record."""
+        return self.version, self.location, self.authority
+
+    def __str__(self):
+        return (f"BIMI Record: {self.bimi_record}\n"
+                f"Version: {self.version}\n"
+                f"Location: {self.location}\n"
+                f"Authority: {self.authority}")
