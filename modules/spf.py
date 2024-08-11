@@ -59,15 +59,19 @@ class SPF:
         return None
     
     def get_spf_includes(self):
-        """Returns the number of includes and other mechanisms in the SPF record for a given domain."""
+        """Returns the number of includes, redirects, and other mechanisms in the SPF record for a given domain."""
         def count_includes(spf_record):
             count = 0
             for item in spf_record.split():
-                if item.startswith("include:"):
-                    url = item.replace('include:', '')
+                if item.startswith("include:") or item.startswith("redirect="):
+                    if item.startswith("include:"):
+                        url = item.replace('include:', '')
+                    elif item.startswith("redirect="):
+                        url = item.replace('redirect=', '')
+                    
                     count += 1
                     try:
-                        # Recursively fetch and count includes in the SPF record of the included domain
+                        # Recursively fetch and count includes or redirects in the SPF record of the referenced domain
                         answers = dns.resolver.resolve(url, 'TXT')
                         for rdata in answers:
                             for txt_string in rdata.strings:
