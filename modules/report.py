@@ -37,7 +37,7 @@ def printer(**kwargs):
     dns_server = kwargs.get('DNS_SERVER')
     spf_record = kwargs.get('SPF')
     spf_all = kwargs.get('SPF_MULTIPLE_ALLS')
-    spf_includes = kwargs.get('SPF_NUM_INCLUDES')
+    spf_dns_query_count = kwargs.get('SPF_NUM_DNS_QUERIES')
     dmarc_record = kwargs.get('DMARC')
     p = kwargs.get('DMARC_POLICY')
     pct = kwargs.get('DMARC_PCT')
@@ -64,7 +64,7 @@ def printer(**kwargs):
             output_message("[?]", "SPF record contains multiple `All` items.", "warning")
         else:
             output_message("[*]", f"SPF all record: {spf_all}", "info")
-        output_message("[*]", f"SPF include count: {spf_includes}" if spf_includes <= 10 else f"Too many SPF include lookups {spf_includes}.", "info")
+        output_message("[*]", f"SPF DNS query count: {spf_dns_query_count}" if spf_dns_query_count <= 10 else f"Too many SPF DNS query lookups {spf_dns_query_count}.", "info")
     else:
         output_message("[?]", "No SPF record found.", "warning")
 

@@ -17,8 +17,8 @@ def process_domain(domain):
 
     spf_record = spf.spf_record
     spf_all = spf.all_mechanism
-    spf_num_includes = spf.num_includes
-    spf_too_many_includes = spf.too_many_includes
+    spf_dns_query_count = spf.spf_dns_query_count
+    spf_too_many_dns_queries = spf.too_many_dns_queries
 
     dmarc_record = dmarc.dmarc_record
     dmarc_p = dmarc.policy
@@ -33,7 +33,7 @@ def process_domain(domain):
     bimi_location = bimi_info.location
     bimi_authority = bimi_info.authority
 
-    spoofing_info = Spoofing(domain, dmarc_p, dmarc_aspf, spf_record, spf_all, spf_num_includes, dmarc_sp, dmarc_pct)
+    spoofing_info = Spoofing(domain, dmarc_p, dmarc_aspf, spf_record, spf_all, spf_dns_query_count, dmarc_sp, dmarc_pct)
 
     domain_type = spoofing_info.domain_type
     spoofing_possible = spoofing_info.spoofing_possible
@@ -45,8 +45,8 @@ def process_domain(domain):
         'DNS_SERVER': dns_info.dns_server,
         'SPF': spf_record, 
         'SPF_MULTIPLE_ALLS': spf_all,
-        'SPF_NUM_INCLUDES': spf_num_includes,
-        'SPF_TOO_MANY_INCLUDES': spf_too_many_includes, 
+        'SPF_NUM_DNS_QUERIES': spf_dns_query_count,
+        'SPF_TOO_MANY_DNS_QUERIES': spf_too_many_dns_queries, 
         'DMARC': dmarc_record, 
         'DMARC_POLICY': dmarc_p, 
         'DMARC_PCT': dmarc_pct, 

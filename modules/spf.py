@@ -9,13 +9,13 @@ class SPF:
         self.dns_server = dns_server
         self.spf_record = self.get_spf_record()
         self.all_mechanism = None
-        self.num_includes = 0
-        self.too_many_includes = False
+        self.spf_dns_query_count = 0
+        self.too_many_dns_queries = False
 
         if self.spf_record:
             self.all_mechanism = self.get_spf_all_string()
-            self.num_includes = self.get_spf_includes()
-            self.too_many_includes = self.num_includes > 10
+            self.spf_dns_query_count = self.get_spf_dns_queries()
+            self.too_many_dns_queries = self.spf_dns_query_count > 10
 
     def get_spf_record(self, domain=None):
         """Fetches the SPF record for the specified domain."""
@@ -58,9 +58,9 @@ class SPF:
 
         return None
     
-    def get_spf_includes(self):
-        """Returns the number of includes, redirects, and other mechanisms in the SPF record for a given domain."""
-        def count_includes(spf_record):
+    def get_spf_dns_queries(self):
+        """Returns the number of dns queries, redirects, and other mechanisms in the SPF record for a given domain."""
+        def count_dns_queries(spf_record):
             count = 0
             for item in spf_record.split():
                 if item.startswith("include:") or item.startswith("redirect="):
@@ -71,13 +71,13 @@ class SPF:
                     
                     count += 1
                     try:
-                        # Recursively fetch and count includes or redirects in the SPF record of the referenced domain
+                        # Recursively fetch and count dns queries or redirects in the SPF record of the referenced domain
                         answers = dns.resolver.resolve(url, 'TXT')
                         for rdata in answers:
                             for txt_string in rdata.strings:
                                 txt_record = txt_string.decode('utf-8')
                                 if txt_record.startswith('v=spf1'):
-                                    count += count_includes(txt_record)
+                                    count += count_dns_queries(txt_record)
                     except Exception:
                         pass
             
@@ -89,10 +89,10 @@ class SPF:
             
             return count
 
-        return count_includes(self.spf_record)
+        return count_dns_queries(self.spf_record)
     
     def __str__(self):
         return (f"SPF Record: {self.spf_record}\n"
                 f"All Mechanism: {self.all_mechanism}\n"
-                f"Number of Includes: {self.num_includes}\n"
-                f"Too Many Includes: {self.too_many_includes}")
+                f"DNS Query Count: {self.spf_dns_query_count}\n"
+                f"Too Many DNS Queries: {self.too_many_dns_queries}")

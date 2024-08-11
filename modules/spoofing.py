@@ -3,13 +3,13 @@
 import tldextract
 
 class Spoofing:
-    def __init__(self, domain, p, aspf, spf_record, spf_all, spf_includes, sp, pct):
+    def __init__(self, domain, p, aspf, spf_record, spf_all, spf_dns_queries, sp, pct):
         self.domain = domain
         self.p = p
         self.aspf = aspf
         self.spf_record = spf_record
         self.spf_all = spf_all
-        self.spf_includes = spf_includes
+        self.spf_dns_queries = spf_dns_queries
         self.sp = sp
         self.pct = pct
         self.domain_type = self.get_domain_type()
@@ -31,7 +31,7 @@ class Spoofing:
                     return 0
                 else:
                     return 8
-            elif self.spf_includes > 10 and self.p is None:
+            elif self.spf_dns_queries > 10 and self.p is None:
                 return 0
             elif self.spf_all == "2many":
                 if self.p == "none":
