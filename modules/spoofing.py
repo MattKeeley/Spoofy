@@ -2,6 +2,7 @@
 
 import tldextract
 
+
 class Spoofing:
     def __init__(self, domain, p, aspf, spf_record, spf_all, spf_dns_queries, sp, pct):
         self.domain = domain
@@ -45,11 +46,23 @@ class Spoofing:
                     return 1
                 elif self.aspf is None and self.sp == "none":
                     return 1
-                elif self.p == "none" and (self.aspf == "r" or self.aspf is None) and self.sp is None:
+                elif (
+                    self.p == "none"
+                    and (self.aspf == "r" or self.aspf is None)
+                    and self.sp is None
+                ):
                     return 4
-                elif self.p == "none" and self.aspf == "r" and (self.sp == "reject" or self.sp == "quarantine"):
+                elif (
+                    self.p == "none"
+                    and self.aspf == "r"
+                    and (self.sp == "reject" or self.sp == "quarantine")
+                ):
                     return 2
-                elif self.p == "none" and self.aspf is None and (self.sp == "reject" or self.sp == "quarantine"):
+                elif (
+                    self.p == "none"
+                    and self.aspf is None
+                    and (self.sp == "reject" or self.sp == "quarantine")
+                ):
                     return 5
                 elif self.p == "none" and self.aspf is None and self.sp == "none":
                     return 7
@@ -62,26 +75,48 @@ class Spoofing:
                     return 0
                 elif self.p == "none" and self.sp == "none":
                     return 7
-                elif (self.p == "reject" or self.p == "quarantine") and self.aspf is None and self.sp == "none":
+                elif (
+                    (self.p == "reject" or self.p == "quarantine")
+                    and self.aspf is None
+                    and self.sp == "none"
+                ):
                     return 1
-                elif (self.p == "reject" or self.p == "quarantine") and self.aspf and self.sp == "none":
+                elif (
+                    (self.p == "reject" or self.p == "quarantine")
+                    and self.aspf
+                    and self.sp == "none"
+                ):
                     return 1
                 else:
                     return 8
             elif self.spf_all == "?all":
-                if (self.p == "reject" or self.p == "quarantine") and self.aspf and self.sp == "none":
+                if (
+                    (self.p == "reject" or self.p == "quarantine")
+                    and self.aspf
+                    and self.sp == "none"
+                ):
                     return 6
-                elif (self.p == "reject" or self.p == "quarantine") and self.aspf is None and self.sp == "none":
+                elif (
+                    (self.p == "reject" or self.p == "quarantine")
+                    and self.aspf is None
+                    and self.sp == "none"
+                ):
                     return 6
                 elif self.p == "none" and self.aspf == "r" and self.sp is None:
                     return 0
                 elif self.p == "none" and self.aspf == "r" and self.sp == "none":
                     return 7
-                elif self.p == "none" and self.aspf == "s" or None and self.sp == "none":
+                elif (
+                    self.p == "none" and self.aspf == "s" or None and self.sp == "none"
+                ):
                     return 7
                 elif self.p == "none" and self.aspf == "s" or None and self.sp is None:
                     return 6
-                elif self.p == "none" and self.aspf and (self.sp == "reject" or self.sp == "quarantine"):
+                elif (
+                    self.p == "none"
+                    and self.aspf
+                    and (self.sp == "reject" or self.sp == "quarantine")
+                ):
                     return 5
                 elif self.p == "none" and self.aspf is None and self.sp == "reject":
                     return 5
@@ -104,10 +139,12 @@ class Spoofing:
             5: f"Organizational domain spoofing might be possible for {self.domain}.",
             6: f"Subdomain spoofing might be possible (Mailbox dependent) for {self.domain}.",
             7: f"Subdomain spoofing is possible and organizational domain spoofing might be possible for {self.domain}.",
-            8: f"Spoofing is not possible for {self.domain}."
+            8: f"Spoofing is not possible for {self.domain}.",
         }
 
-        spoofing_type = spoofing_types.get(self.spoofable, f"Unknown spoofing type for {self.domain}.")
+        spoofing_type = spoofing_types.get(
+            self.spoofable, f"Unknown spoofing type for {self.domain}."
+        )
 
         if self.spoofable in {0, 1, 3, 7}:
             spoofing_possible = True
@@ -119,7 +156,9 @@ class Spoofing:
         return spoofing_possible, spoofing_type
 
     def __str__(self):
-        return (f"Domain: {self.domain}\n"
-                f"Domain Type: {self.domain_type}\n"
-                f"Spoofing Possible: {self.spoofing_possible}\n"
-                f"Spoofing Type: {self.spoofing_type}")
+        return (
+            f"Domain: {self.domain}\n"
+            f"Domain Type: {self.domain_type}\n"
+            f"Spoofing Possible: {self.spoofing_possible}\n"
+            f"Spoofing Type: {self.spoofing_type}"
+        )

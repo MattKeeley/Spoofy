@@ -3,6 +3,7 @@
 import dns.resolver
 import tldextract
 
+
 class DMARC:
     def __init__(self, domain, dns_server=None):
         self.domain = domain
@@ -28,7 +29,7 @@ class DMARC:
         subdomain = tldextract.extract(self.domain).registered_domain
         if subdomain != self.domain:
             return self.get_dmarc_record_for_domain(subdomain)
-        
+
         return self.get_dmarc_record_for_domain(self.domain)
 
     def get_dmarc_record_for_domain(self, domain):
@@ -42,7 +43,7 @@ class DMARC:
 
         for dns_data in dmarc:
             if "DMARC1" in str(dns_data):
-                return str(dns_data).replace('"', '')
+                return str(dns_data).replace('"', "")
         return None
 
     def get_dmarc_policy(self):
@@ -82,10 +83,12 @@ class DMARC:
         return None
 
     def __str__(self):
-        return (f"DMARC Record: {self.dmarc_record}\n"
-                f"Policy: {self.policy}\n"
-                f"Pct: {self.pct}\n"
-                f"ASPF: {self.aspf}\n"
-                f"Subdomain Policy: {self.sp}\n"
-                f"Forensic Report URI: {self.fo}\n"
-                f"Aggregate Report URI: {self.rua}")
+        return (
+            f"DMARC Record: {self.dmarc_record}\n"
+            f"Policy: {self.policy}\n"
+            f"Pct: {self.pct}\n"
+            f"ASPF: {self.aspf}\n"
+            f"Subdomain Policy: {self.sp}\n"
+            f"Forensic Report URI: {self.fo}\n"
+            f"Aggregate Report URI: {self.rua}"
+        )

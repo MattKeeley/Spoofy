@@ -6,6 +6,7 @@ from .spf import SPF
 from .dmarc import DMARC
 from .bimi import BIMI
 
+
 class DNS:
     def __init__(self, domain):
         self.domain = domain
@@ -21,9 +22,9 @@ class DNS:
     def get_soa_record(self):
         """Sets the SOA record and DNS server of a given domain."""
         resolver = dns.resolver.Resolver()
-        resolver.nameservers = ['1.1.1.1']
+        resolver.nameservers = ["1.1.1.1"]
         try:
-            query = resolver.resolve(self.domain, 'SOA')
+            query = resolver.resolve(self.domain, "SOA")
         except Exception:
             return
         if query:
@@ -44,7 +45,7 @@ class DNS:
             if self.spf_record.spf_record and self.dmarc_record.dmarc_record:
                 return
 
-        for ip_address in ['1.1.1.1', '8.8.8.8', '9.9.9.9']:
+        for ip_address in ["1.1.1.1", "8.8.8.8", "9.9.9.9"]:
             self.spf_record = SPF(self.domain, ip_address)
             self.dmarc_record = DMARC(self.domain, ip_address)
             self.bimi_record = BIMI(self.domain, ip_address)
@@ -52,7 +53,7 @@ class DNS:
                 self.dns_server = ip_address
                 return
 
-        self.dns_server = '1.1.1.1'
+        self.dns_server = "1.1.1.1"
 
     def get_txt_record(self, record_type):
         """Returns the TXT record of a given type for the domain."""
@@ -65,9 +66,11 @@ class DNS:
             return None
 
     def __str__(self):
-        return (f"Domain: {self.domain}\n"
-                f"SOA Record: {self.soa_record}\n"
-                f"DNS Server: {self.dns_server}\n"
-                f"SPF Record: {self.spf_record.spf_record}\n"
-                f"DMARC Record: {self.dmarc_record.dmarc_record}\n"
-                f"BIMI Record: {self.bimi_record.bimi_record}")
+        return (
+            f"Domain: {self.domain}\n"
+            f"SOA Record: {self.soa_record}\n"
+            f"DNS Server: {self.dns_server}\n"
+            f"SPF Record: {self.spf_record.spf_record}\n"
+            f"DMARC Record: {self.dmarc_record.dmarc_record}\n"
+            f"BIMI Record: {self.bimi_record.bimi_record}"
+        )

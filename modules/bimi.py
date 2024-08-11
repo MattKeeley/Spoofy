@@ -2,6 +2,7 @@
 
 import dns.resolver
 
+
 class BIMI:
     def __init__(self, domain, dns_server=None):
         self.domain = domain
@@ -22,9 +23,9 @@ class BIMI:
             resolver = dns.resolver.Resolver()
             if self.dns_server:
                 resolver.nameservers = [self.dns_server]
-            bimi = resolver.resolve(f'default._bimi.{self.domain}', 'TXT')
+            bimi = resolver.resolve(f"default._bimi.{self.domain}", "TXT")
             for record in bimi:
-                if 'v=BIMI' in str(record):
+                if "v=BIMI" in str(record):
                     return record
             return None
         except Exception:
@@ -53,7 +54,9 @@ class BIMI:
         return self.version, self.location, self.authority
 
     def __str__(self):
-        return (f"BIMI Record: {self.bimi_record}\n"
-                f"Version: {self.version}\n"
-                f"Location: {self.location}\n"
-                f"Authority: {self.authority}")
+        return (
+            f"BIMI Record: {self.bimi_record}\n"
+            f"Version: {self.version}\n"
+            f"Location: {self.location}\n"
+            f"Authority: {self.authority}"
+        )
