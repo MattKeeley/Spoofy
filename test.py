@@ -1,5 +1,5 @@
 import unittest
-from libs import logic
+from modules import logic
 
 class TestSpoofy(unittest.TestCase):
 

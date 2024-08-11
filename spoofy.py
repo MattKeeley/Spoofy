@@ -2,8 +2,7 @@
 import argparse
 import tldextract
 import threading
-import os
-from libs import bimi, dmarc, dns, logic, spf, report
+from modules import bimi, dmarc, dns, logic, spf, report
 
 print_lock = threading.Lock()
 
