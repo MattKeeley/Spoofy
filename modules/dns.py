@@ -1,59 +1,73 @@
 # modules/dns.py
+
 import dns.resolver
 import socket
-from . import spf, dmarc, bimi
+from .spf import SPF
+from .dmarc import DMARC
+from .bimi import BIMI
 
+class DNS:
+    def __init__(self, domain):
+        self.domain = domain
+        self.soa_record = None
+        self.dns_server = None
+        self.spf_record = None
+        self.dmarc_record = None
+        self.bimi_record = None
 
-def get_soa_record(domain):
-    """Returns the SOA record of a given domain."""
-    resolver = dns.resolver.Resolver()
-    resolver.nameservers = ['1.1.1.1']
-    try:
-        query = resolver.resolve(domain, 'SOA')
-    except:
-        return None
-    if query:
-        for data in query:
-            dns_server = str(data.mname)
+        self.get_soa_record()
+        self.get_dns_server()
+
+    def get_soa_record(self):
+        """Sets the SOA record and DNS server of a given domain."""
+        resolver = dns.resolver.Resolver()
+        resolver.nameservers = ['1.1.1.1']
         try:
-            return socket.gethostbyname(dns_server)
+            query = resolver.resolve(self.domain, 'SOA')
+        except:
+            return
+        if query:
+            for data in query:
+                dns_server = str(data.mname)
+            try:
+                self.soa_record = socket.gethostbyname(dns_server)
+                self.dns_server = self.soa_record
+            except:
+                self.soa_record = None
+
+    def get_dns_server(self):
+        """Finds the DNS server that serves the domain and retrieves associated SPF, DMARC, and BIMI records."""
+        if self.soa_record:
+            self.spf_record = SPF(self.domain, self.soa_record)
+            self.dmarc_record = DMARC(self.domain, self.soa_record)
+            self.bimi_record = BIMI(self.domain, self.soa_record)
+            if self.spf_record.spf_record and self.dmarc_record.dmarc_record:
+                return
+
+        for ip_address in ['1.1.1.1', '8.8.8.8', '9.9.9.9']:
+            self.spf_record = SPF(self.domain, ip_address)
+            self.dmarc_record = DMARC(self.domain, ip_address)
+            self.bimi_record = BIMI(self.domain, ip_address)
+            if self.spf_record.spf_record and self.dmarc_record.dmarc_record:
+                self.dns_server = ip_address
+                return
+
+        self.dns_server = '1.1.1.1'
+
+    def get_txt_record(self, record_type):
+        """Returns the TXT record of a given type for the domain."""
+        resolver = dns.resolver.Resolver()
+        resolver.nameservers = [self.dns_server]
+        try:
+            query = resolver.query(self.domain, record_type)
+            return str(query[0])
         except:
             return None
-    return None
 
-
-def get_dns_server(domain):
-    """Finds the DNS server that serves the domain and returns it, along with any SPF or DMARC records."""
-    SOA = get_soa_record(domain)
-    spf_record = dmarc_record = partial_spf_record = partial_dmarc_record = bimi_record = None
-
-    if SOA:
-        spf_record = spf.get_spf_record(domain, SOA)
-        dmarc_record = dmarc.get_dmarc_record(domain, SOA)
-        bimi_record = bimi.get_bimi_record(domain, SOA)
-        if spf_record and dmarc_record:
-            return SOA, spf_record, dmarc_record, bimi_record
-
-    for ip_address in ['1.1.1.1', '8.8.8.8', '9.9.9.9']:
-        spf_record = spf.get_spf_record(domain, ip_address)
-        dmarc_record = dmarc.get_dmarc_record(domain, ip_address)
-        bimi_record = bimi.get_bimi_record(domain, SOA)
-        if spf_record and dmarc_record:
-            return ip_address, spf_record, dmarc_record, bimi_record
-        if spf_record:
-            partial_spf_record = spf_record
-        if dmarc_record:
-            partial_dmarc_record = dmarc_record
-
-    return '1.1.1.1', partial_spf_record, partial_dmarc_record, bimi_record
-
-
-def get_txt_record(domain, record_type):
-    """Returns the TXT record of a given type for a given domain."""
-    resolver = dns.resolver.Resolver()
-    resolver.nameservers = [get_dns_server(domain)]
-    try:
-        query = resolver.query(domain, record_type)
-        return str(query[0])
-    except:
-        return None
+    def __str__(self):
+        return (f"Domain: {self.domain}\n"
+                f"SOA Record: {self.soa_record}\n"
+                f"DNS Server: {self.dns_server}\n"
+                f"SPF Record: {self.spf_record.spf_record}\n"
+                f"DMARC Record: {self.dmarc_record.dmarc_record}\n"
+                f"BIMI Record: {self.bimi_record.bimi_record}")
