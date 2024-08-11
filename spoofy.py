@@ -7,7 +7,6 @@ from modules.dmarc import DMARC
 from modules.bimi import BIMI
 from modules.spoofing import Spoofing
 from modules import report
-from queue import Queue
 
 def process_domain(domain):
     """Process a domain to gather DNS, SPF, DMARC, and BIMI records, and evaluate spoofing potential."""
