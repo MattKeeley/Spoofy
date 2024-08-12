@@ -30,12 +30,6 @@ def validate_record_syntax(record, record_type):
         for element in elements[1:]:
             element = element.strip()
 
-            if element[0] in ["+", "-", "~", "?"]:
-                qualifier = element[0]
-                element = element[1:]
-            else:
-                qualifier = "+"
-
             if ":" in element:
                 mechanism, value = element.split(":", 1)
             elif "=" in element:
