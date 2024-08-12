@@ -5,15 +5,15 @@ from modules.spoofing import Spoofing
 class TestSpoofy(unittest.TestCase):
     def test_spoofing_is_possible(self):
         spoofing = Spoofing(
-            domain="test_0.com", 
-            dmarc_record="v=DMARC1; p=none;", 
-            p="none", 
-            aspf="r", 
-            spf_record="v=spf1 include:fake.gov", 
-            spf_all="~all", 
-            spf_dns_queries=3, 
-            sp=None, 
-            pct=100
+            domain="test_0.com",
+            dmarc_record="v=DMARC1; p=none;",
+            p="none",
+            aspf="r",
+            spf_record="v=spf1 include:fake.gov",
+            spf_all="~all",
+            spf_dns_queries=3,
+            sp=None,
+            pct=100,
         )
         self.assertEqual(spoofing.spoofable, 0)
 
