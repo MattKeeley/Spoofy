@@ -1,11 +1,24 @@
 # modules/spoofing.py
 
 import tldextract
+from .syntax import validate_record_syntax
 
 
 class Spoofing:
-    def __init__(self, domain, p, aspf, spf_record, spf_all, spf_dns_queries, sp, pct):
+    def __init__(
+        self,
+        domain,
+        dmarc_record,
+        p,
+        aspf,
+        spf_record,
+        spf_all,
+        spf_dns_queries,
+        sp,
+        pct,
+    ):
         self.domain = domain
+        self.dmarc_record = dmarc_record
         self.p = p
         self.aspf = aspf
         self.spf_record = spf_record
