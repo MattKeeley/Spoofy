@@ -3,18 +3,6 @@ from modules.spoofing import Spoofing
 
 
 class TestSpoofy(unittest.TestCase):
-    """
-    --- Format --- 
-    domain: str,
-    p: str,
-    aspf: str,
-    spf_record: str,
-    spf_all: str,
-    spf_dns_queries: int,
-    sp: None,
-    pct: int
-    """
-
     def test_spoofing_is_possible(self):
         spoofing = Spoofing(
             domain="test_0.com", 
