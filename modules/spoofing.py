@@ -30,6 +30,8 @@ class Spoofing:
             elif self.spf_record is None:
                 if self.p is None:
                     return 0
+                elif self.p == "none":
+                    return 4
                 else:
                     return 8
             elif self.spf_dns_queries > 10 and self.p is None:
