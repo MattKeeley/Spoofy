@@ -140,8 +140,6 @@ class Spoofing:
             else:
                 return 8
         except Exception:
-            print("If you hit this error message, Open an issue with your testcase.")
-            return 8
             # If you are here, this means you caught a domain with a syntax error!
             spf_valid = validate_record_syntax(self.spf_record, "SPF")
             dmarc_valid = validate_record_syntax(self.dmarc_record, "DMARC")
