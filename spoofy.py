@@ -1,4 +1,6 @@
 #! /usr/bin/env python3
+
+# spoofy.py
 import argparse
 import threading
 from queue import Queue
@@ -39,6 +41,7 @@ def process_domain(domain):
 
     spoofing_info = Spoofing(
         domain,
+        dmarc_record,
         dmarc_p,
         dmarc_aspf,
         spf_record,
