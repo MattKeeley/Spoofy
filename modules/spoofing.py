@@ -66,9 +66,9 @@ class Spoofing:
                         if self.aspf in [
                             "r",
                             "s",
-                        ]:  # Adjusted here to check for aspf before returning 1
+                        ]:
                             return 8
-                        return 1  # Default return 1 if aspf is not r or s
+                        return 1
                     return 8
             if self.spf_all == "?all":
                 if not self.dmarc_record:
