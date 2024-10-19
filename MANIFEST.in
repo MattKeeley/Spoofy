@@ -1,0 +1,6 @@
+# Exclude the entire files directory
+exclude files/*
+
+# Include essential files like README and LICENSE
+include LICENSE
+include README.md

@@ -40,116 +40,85 @@ class Spoofing:
         try:
             if self.pct and int(self.pct) != 100:
                 return 3
-            elif self.spf_record is None:
-                if self.p is None:
-                    return 0
-                elif self.p == "none":
-                    return 4
-                else:
-                    return 8
-            elif self.spf_dns_queries > 10 and self.p is None:
+            if self.spf_record is None:
+                return 0 if self.p is None else 4 if self.p == "none" else 8
+            if self.spf_dns_queries > 10 and self.p is None:
                 return 0
-            elif self.spf_all == "2many":
+            if self.spf_all == "2many":
+                return 3 if self.p == "none" else 8
+            if self.spf_all and self.p is None:
+                return 0
+            if self.spf_all == "-all":
                 if self.p == "none":
-                    return 3
-                else:
-                    return 8
-            elif self.spf_all and self.p is None:
-                return 0
-            elif self.spf_all == "-all":
-                if self.p and self.aspf and self.sp == "none":
-                    return 1
-                elif self.aspf is None and self.sp == "none":
-                    return 1
-                elif (
-                    self.p == "none"
-                    and (self.aspf == "r" or self.aspf is None)
-                    and self.sp is None
-                ):
+                    if self.sp == "none":
+                        if self.aspf in ["r", "s"]:
+                            return 1
+                        return 7
+                    if self.sp in ["quarantine", "reject"]:
+                        if self.aspf == "r":
+                            return 2
+                        if self.aspf == "s":
+                            return 8
+                        return 5
                     return 4
-                elif (
-                    self.p == "none"
-                    and self.aspf == "r"
-                    and (self.sp == "reject" or self.sp == "quarantine")
-                ):
-                    return 2
-                elif (
-                    self.p == "none"
-                    and self.aspf is None
-                    and (self.sp == "reject" or self.sp == "quarantine")
-                ):
-                    return 5
-                elif self.p == "none" and self.aspf is None and self.sp == "none":
-                    return 7
-                else:
+                if self.p in ["quarantine", "reject"]:
+                    if self.sp == "none":
+                        if self.aspf in [
+                            "r",
+                            "s",
+                        ]:
+                            return 8
+                        return 1
                     return 8
-            elif self.spf_all == "~all":
-                if self.p == "none" and self.sp == "reject" or self.sp == "quarantine":
-                    return 2
-                elif self.p == "none" and self.sp is None:
+            if self.spf_all == "?all":
+                if not self.dmarc_record:
                     return 0
-                elif self.p == "none" and self.sp == "none":
-                    return 7
-                elif (
-                    (self.p == "reject" or self.p == "quarantine")
-                    and self.aspf is None
-                    and self.sp == "none"
-                ):
-                    return 1
-                elif (
-                    (self.p == "reject" or self.p == "quarantine")
-                    and self.aspf
-                    and self.sp == "none"
-                ):
-                    return 1
-                else:
-                    return 8
-            elif self.spf_all == "?all":
-                if (
-                    (self.p == "reject" or self.p == "quarantine")
-                    and self.aspf
-                    and self.sp == "none"
-                ):
-                    return 6
-                elif (
-                    (self.p == "reject" or self.p == "quarantine")
-                    and self.aspf is None
-                    and self.sp == "none"
-                ):
-                    return 6
-                elif self.p == "none" and self.aspf == "r" and self.sp is None:
+                if self.p == "none" and self.aspf == "r":
                     return 0
-                elif self.p == "none" and self.aspf == "r" and self.sp == "none":
-                    return 7
-                elif (
-                    self.p == "none" and self.aspf == "s" or None and self.sp == "none"
-                ):
-                    return 7
-                elif self.p == "none" and self.aspf == "s" or None and self.sp is None:
-                    return 6
-                elif (
-                    self.p == "none"
-                    and self.aspf
-                    and (self.sp == "reject" or self.sp == "quarantine")
-                ):
+                if self.p == "none" and self.sp == "none" and self.aspf in ["r", "s"]:
+                    return 4
+                if self.p == "none" and self.sp in ["quarantine", "reject"]:
                     return 5
-                elif self.p == "none" and self.aspf is None and self.sp == "reject":
-                    return 5
-                else:
-                    return 8
-            else:
                 return 8
+            if self.spf_all == "+all":
+                return 4
+            if self.spf_all == "~all":
+                if self.p == "none":
+                    if self.sp == "none":
+                        return 7 if self.aspf in ["r", "s"] else 0
+                    if self.sp in ["quarantine", "reject"]:
+                        return 2
+                    return 2 if self.aspf in ["r", "s"] else 8
+
+                if self.p in ["quarantine", "reject"]:
+                    if self.sp == "none":
+                        return 8 if self.aspf in ["r", "s"] else 1
+                    return 8
+            if not self.spf_all:
+                if not self.dmarc_record:
+                    return 0
+                if (
+                    self.p in ["quarantine", "reject"]
+                    and self.sp == "none"
+                    and self.aspf in ["r", "s"]
+                ):
+                    return 1
+                if self.p == "none" and self.sp in ["none", "quarantine", "reject"]:
+                    return 4 if self.aspf == "s" else 5
+                return 8
+            if not self.spf_record:
+                if not self.dmarc_record:
+                    return 0
+                if self.p == "none" and self.sp == "none" and self.aspf in ["r", "s"]:
+                    return 2
+                return 4 if self.p == "none" else 8
+            return 8
         except Exception:
-            # If you are here, this means you caught a domain with a syntax error!
             spf_valid = validate_record_syntax(self.spf_record, "SPF")
             dmarc_valid = validate_record_syntax(self.dmarc_record, "DMARC")
-
             if (not spf_valid and not dmarc_valid) or (spf_valid and not dmarc_valid):
                 return 0
-            elif not spf_valid and dmarc_valid and self.p == "none":
-                return 3
-            else:
-                return 8
+            return 3 if not spf_valid and dmarc_valid and self.p == "none" else 8
 
     def evaluate_spoofing(self):
         """Evaluates and returns whether spoofing is possible and the type of spoofing."""
@@ -159,7 +128,7 @@ class Spoofing:
             2: f"Organizational domain spoofing possible for {self.domain}.",
             3: f"Spoofing might be possible for {self.domain}.",
             4: f"Spoofing might be possible (Mailbox dependent) for {self.domain}.",
-            5: f"Organizational domain spoofing might be possible for {self.domain}.",
+            5: f"Organizational domain spoofing might be possible (Mailbox dependent) for {self.domain}.",
             6: f"Subdomain spoofing might be possible (Mailbox dependent) for {self.domain}.",
             7: f"Subdomain spoofing is possible and organizational domain spoofing might be possible for {self.domain}.",
             8: f"Spoofing is not possible for {self.domain}.",
