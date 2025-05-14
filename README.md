@@ -30,14 +30,14 @@ Well, Spoofy is different and here is why:
 
 ```console
 Usage:
-    ./spoofy.py -d [DOMAIN] -o [stdout or xls] -t [NUMBER_OF_THREADS]
+    ./spoofy.py -d [DOMAIN] -o [stdout, json or xls] -t [NUMBER_OF_THREADS]
     OR
-    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout or xls] -t [NUMBER_OF_THREADS]
+    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout, json or xls] -t [NUMBER_OF_THREADS]
 
 Options:
     -d  : Process a single domain.
     -iL : Provide a file containing a list of domains to process.
-    -o  : Specify the output format: stdout (default) or xls.
+    -o  : Specify the output format: stdout (optionally as json) or xls (default: stdout).
     -t  : Set the number of threads to use (default: 4).
 
 Examples:
