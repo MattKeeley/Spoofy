@@ -107,9 +107,9 @@ def main():
     parser.add_argument(
         "-o",
         type=str,
-        choices=["stdout", "xls"],
+        choices=["stdout", "xls", "json"],
         default="stdout",
-        help="Output format: stdout or xls (default: stdout).",
+        help="Output format: stdout (optionally as json) or xls (default: stdout).",
     )
     parser.add_argument(
         "-t", type=int, default=4, help="Number of threads to use (default: 4)"
@@ -138,6 +138,9 @@ def main():
         threads.append(thread)
 
     domain_queue.join()
+
+    if args.o == "json" and results:
+        report.print_as_json(results)
 
     if args.o == "xls" and results:
         report.write_to_excel(results)

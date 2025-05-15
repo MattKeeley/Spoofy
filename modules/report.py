@@ -2,6 +2,7 @@
 
 import os
 import pandas as pd
+import json
 from colorama import init, Fore, Style
 
 # Initialize colorama
@@ -20,6 +21,10 @@ def output_message(symbol, message, level="info"):
     }
     color = colors.get(level, Fore.WHITE + Style.BRIGHT)
     print(color + f"{symbol} {message}" + Style.RESET_ALL)
+
+
+def print_as_json(data):
+    print(json.dumps(data))
 
 
 def write_to_excel(data, file_name="output.xlsx"):
