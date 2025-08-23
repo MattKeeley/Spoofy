@@ -10,7 +10,8 @@ def get_bimi_record(domain, dns_server):
         for record in query_result:
             if 'v=BIMI' in str(record):
                 return record
-        return None
+        #return None
+        return "No BIMI record"
     except:
         return None
 

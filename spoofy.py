@@ -3,7 +3,7 @@ import argparse
 import tldextract
 import threading
 import os
-from libs import bimi, dmarc, dns, logic, spf, report
+from libs import bimi, dmarc, dns, logic, spf, report, dkim
 
 print_lock = threading.Lock()
 
@@ -13,14 +13,16 @@ def process_domain(domain, output):
       as arguments. It processes each domain, collects its relevant details, 
       and outputs the results to the console or an Excel file."""
     try:
-        dns_server = spf_record = dmarc_record = None
+        dns_server = spf_record = dmarc_record = dkim_record = None
         spf_all = spf_includes = p = pct = aspf = sp = fo = rua = vbimi = location = authority = None
         subdomain = bool(tldextract.extract(domain).subdomain)
         with print_lock:
-            dns_server, spf_record, dmarc_record, bimi_record = dns.get_dns_server(domain)
+            dns_server, spf_record, dkim_record, dmarc_record, bimi_record = dns.get_dns_server(domain)
         if spf_record:
             spf_all = spf.get_spf_all_string(spf_record)
             spf_includes = spf.get_spf_includes(domain)
+        if dkim_record:
+            dkim_record = dkim.get_dkim_record(domain)
         if dmarc_record:
             p, pct, aspf, sp, fo, rua = dmarc.get_dmarc_details(dmarc_record)
         if bimi_record:
@@ -34,6 +36,7 @@ def process_domain(domain, output):
                         'SPF': spf_record, 
                         'SPF MULTIPLE ALLS': spf_all,
                         'SPF TOO MANY INCLUDES': spf_includes, 
+                        'DKIM': dkim_record,
                         'DMARC': dmarc_record, 
                         'DMARC POLICY': p,
                         'DMARC PCT': pct, 
@@ -49,7 +52,7 @@ def process_domain(domain, output):
                 report.write_to_excel(data)
         else:
             with print_lock:
-                report.printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dmarc_record, p, pct, aspf,
+                report.printer(domain, subdomain, dns_server, spf_record, spf_all, spf_includes, dkim_record, dmarc_record, p, pct, aspf,
                                sp, fo, rua, bimi_record, vbimi, location, authority, spoofable)
     except Exception as e:
         raise e

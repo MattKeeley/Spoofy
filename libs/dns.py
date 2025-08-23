@@ -1,6 +1,6 @@
 import dns.resolver
 import socket
-from . import spf, dmarc, bimi
+from . import spf, dmarc, bimi, dkim
 
 
 def get_soa_record(domain):
@@ -24,17 +24,19 @@ def get_soa_record(domain):
 def get_dns_server(domain):
     """Finds the DNS server that serves the domain and returns it, along with any SPF or DMARC records."""
     SOA = get_soa_record(domain)
-    spf_record = dmarc_record = partial_spf_record = partial_dmarc_record = bimi_record = None
+    spf_record = dkim_record = dmarc_record = partial_spf_record = partial_dmarc_record = partial_dkim_record = bimi_record = None
 
     if SOA:
         spf_record = spf.get_spf_record(domain, SOA)
         dmarc_record = dmarc.get_dmarc_record(domain, SOA)
+        dkim_record = dkim.get_dkim_record(domain, SOA)
         bimi_record = bimi.get_bimi_record(domain, SOA)
         if spf_record and dmarc_record:
-            return SOA, spf_record, dmarc_record, bimi_record
+            return SOA, spf_record, dkim_record, dmarc_record, bimi_record
 
     for ip_address in ['1.1.1.1', '8.8.8.8', '9.9.9.9']:
         spf_record = spf.get_spf_record(domain, ip_address)
+        dkim_record = dkim.get_dkim_record(domain, ip_address)
         dmarc_record = dmarc.get_dmarc_record(domain, ip_address)
         bimi_record = bimi.get_bimi_record(domain, SOA)
         if spf_record and dmarc_record:
@@ -43,8 +45,10 @@ def get_dns_server(domain):
             partial_spf_record = spf_record
         if dmarc_record:
             partial_dmarc_record = dmarc_record
+        if dkim_record:
+            partial_dkim_record = dkim_record
 
-    return '1.1.1.1', partial_spf_record, partial_dmarc_record, bimi_record
+    return '1.1.1.1', partial_spf_record, partial_dmarc_record, bimi_record, partial_dkim_record
 
 
 def get_txt_record(domain, record_type):
