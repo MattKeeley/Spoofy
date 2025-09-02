@@ -3,6 +3,7 @@
 # spoofy.py
 import argparse
 import threading
+import json
 from queue import Queue
 from modules.dns import DNS
 from modules.spf import SPF
@@ -107,13 +108,14 @@ def main():
     parser.add_argument(
         "-o",
         type=str,
-        choices=["stdout", "xls"],
+        choices=["stdout", "xls", "json"],
         default="stdout",
         help="Output format: stdout or xls (default: stdout).",
     )
     parser.add_argument(
         "-t", type=int, default=4, help="Number of threads to use (default: 4)"
     )
+
 
     args = parser.parse_args()
 
@@ -142,6 +144,8 @@ def main():
     if args.o == "xls" and results:
         report.write_to_excel(results)
         print("Results written to output.xlsx")
+    elif args.o == "json" and results:
+        print(report.output_json(results))
 
     for _ in range(len(threads)):
         domain_queue.put(None)

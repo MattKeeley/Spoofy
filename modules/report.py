@@ -2,6 +2,7 @@
 
 import os
 import pandas as pd
+import json
 from colorama import init, Fore, Style
 
 # Initialize colorama
@@ -32,6 +33,9 @@ def write_to_excel(data, file_name="output.xlsx"):
     else:
         pd.DataFrame(data).to_excel(file_name, index=False)
 
+def output_json(data):
+    jsonout = json.dumps(data)
+    return jsonout
 
 def printer(**kwargs):
     """Utility function to print the results of DMARC, SPF, and BIMI checks in the original format."""
