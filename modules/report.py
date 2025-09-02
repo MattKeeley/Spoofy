@@ -33,9 +33,14 @@ def write_to_excel(data, file_name="output.xlsx"):
     else:
         pd.DataFrame(data).to_excel(file_name, index=False)
 
-def output_json(data):
-    jsonout = json.dumps(data)
-    return jsonout
+def output_json(results):
+    output = []
+    for result in results:
+        output.append(result)
+    print(json.dumps(output))
+
+
+
 
 def printer(**kwargs):
     """Utility function to print the results of DMARC, SPF, and BIMI checks in the original format."""

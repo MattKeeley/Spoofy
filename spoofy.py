@@ -3,7 +3,6 @@
 # spoofy.py
 import argparse
 import threading
-import json
 from queue import Queue
 from modules.dns import DNS
 from modules.spf import SPF
@@ -145,7 +144,7 @@ def main():
         report.write_to_excel(results)
         print("Results written to output.xlsx")
     elif args.o == "json" and results:
-        print(report.output_json(results))
+        report.output_json(results)
 
     for _ in range(len(threads)):
         domain_queue.put(None)
