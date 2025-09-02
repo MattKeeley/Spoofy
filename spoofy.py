@@ -3,7 +3,6 @@
 # spoofy.py
 import argparse
 import threading
-import json
 from queue import Queue
 from modules.dns import DNS
 from modules.spf import SPF
