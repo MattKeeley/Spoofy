@@ -88,7 +88,7 @@ class Spoofing:
                         return 7 if self.aspf in ["r", "s"] else 0
                     if self.sp in ["quarantine", "reject"]:
                         return 2
-                    return 2 if self.aspf in ["r", "s"] else 8
+                    return 2 if self.aspf in ["r", "s"] else 7
 
                 if self.p in ["quarantine", "reject"]:
                     if self.sp == "none":
