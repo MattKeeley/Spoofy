@@ -5,6 +5,7 @@ import socket
 from .spf import SPF
 from .dmarc import DMARC
 from .bimi import BIMI
+from .dkim import DKIM
 
 
 class DNS:
@@ -14,6 +15,7 @@ class DNS:
         self.dns_server = None
         self.spf_record = None
         self.dmarc_record = None
+        self.dkim_record = None
         self.bimi_record = None
 
         self.get_soa_record()
@@ -48,6 +50,7 @@ class DNS:
         for ip_address in ["1.1.1.1", "8.8.8.8", "9.9.9.9"]:
             self.spf_record = SPF(self.domain, ip_address)
             self.dmarc_record = DMARC(self.domain, ip_address)
+            self.dkim_record = DKIM(self.domain, ip_address)
             self.bimi_record = BIMI(self.domain, ip_address)
             if self.spf_record.spf_record and self.dmarc_record.dmarc_record:
                 self.dns_server = ip_address
@@ -72,5 +75,6 @@ class DNS:
             f"DNS Server: {self.dns_server}\n"
             f"SPF Record: {self.spf_record.spf_record}\n"
             f"DMARC Record: {self.dmarc_record.dmarc_record}\n"
+            f"DKIM Record: {self.dkim_record.dkim_record}\n"
             f"BIMI Record: {self.bimi_record.bimi_record}"
         )

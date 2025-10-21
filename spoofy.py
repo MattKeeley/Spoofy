@@ -8,6 +8,7 @@ from modules.dns import DNS
 from modules.spf import SPF
 from modules.dmarc import DMARC
 from modules.bimi import BIMI
+from modules.dkim import DKIM
 from modules.spoofing import Spoofing
 from modules import report
 
@@ -15,10 +16,11 @@ print_lock = threading.Lock()
 
 
 def process_domain(domain):
-    """Process a domain to gather DNS, SPF, DMARC, and BIMI records, and evaluate spoofing potential."""
+    """Process a domain to gather DNS, SPF, DMARC, BIMI records, enumerate known DKIM selectors, and evaluate spoofing potential."""
     dns_info = DNS(domain)
     spf = SPF(domain, dns_info.dns_server)
     dmarc = DMARC(domain, dns_info.dns_server)
+    dkim = DKIM(domain, dns_info.dns_server)
     bimi_info = BIMI(domain, dns_info.dns_server)
 
     spf_record = spf.spf_record
@@ -33,6 +35,8 @@ def process_domain(domain):
     dmarc_sp = dmarc.sp
     dmarc_fo = dmarc.fo
     dmarc_rua = dmarc.rua
+
+    dkim_record = dkim.dkim_record
 
     bimi_record = bimi_info.bimi_record
     bimi_version = bimi_info.version
@@ -70,6 +74,7 @@ def process_domain(domain):
         "DMARC_SP": dmarc_sp,
         "DMARC_FORENSIC_REPORT": dmarc_fo,
         "DMARC_AGGREGATE_REPORT": dmarc_rua,
+        "DKIM": dkim_record,
         "BIMI_RECORD": bimi_record,
         "BIMI_VERSION": bimi_version,
         "BIMI_LOCATION": bimi_location,
@@ -97,7 +102,7 @@ def worker(domain_queue, print_lock, output, results):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Process domains to gather DNS, SPF, DMARC, and BIMI records."
+        description="Process domains to gather DNS, SPF, DMARC, BIMI records and known DKIM selectors."
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-d", type=str, help="Single domain to process.")

@@ -48,6 +48,7 @@ def printer(**kwargs):
     sp = kwargs.get("DMARC_SP")
     fo = kwargs.get("DMARC_FORENSIC_REPORT")
     rua = kwargs.get("DMARC_AGGREGATE_REPORT")
+    dkim_record = kwargs.get("DKIM")
     bimi_record = kwargs.get("BIMI_RECORD")
     vbimi = kwargs.get("BIMI_VERSION")
     location = kwargs.get("BIMI_LOCATION")
@@ -116,6 +117,11 @@ def printer(**kwargs):
     else:
         output_message("[?]", "No DMARC record found.", "warning")
 
+    if dkim_record:
+        output_message("[*]", f"DKIM selectors: \r\n{dkim_record}", "info")
+    else:
+        output_message("[?]", f"No known DKIM selectors enumerated on {domain}.", "warning")
+        
     if bimi_record:
         output_message("[*]", f"BIMI record: {bimi_record}", "info")
         output_message("[*]", f"BIMI version: {vbimi}", "info")
