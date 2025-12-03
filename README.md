@@ -67,16 +67,6 @@ After the initial testing using Microsoft 365, some combinations were retested u
 > Developers assume no liability and are not responsible for any misuse or damage
 > caused by this tool and software.
 
-## CREDIT
-
-Lead / Only programmer & spoofability logic comprehension upgrades & lookup resiliency system / fix (main issue with other tools) & multithreading & feature additions: [Matt Keeley](https://www.linkedin.com/in/mattrkeeley/)
-
-DMARC, SPF, DNS insights & Spoofability table creation/confirmation/testing & application accuracy/quality assurance: calamity.email / [eman-ekaf](https://github.com/eman-ekaf)
-
-Logo: cobracode
-
-Tool was inspired by [Bishop Fox's](https://github.com/BishopFox/) project called [spoofcheck](https://github.com/BishopFox/spoofcheck/).
-
 ## LICENSE
 
 This project is licensed under the Creative Commons Zero v1.0 Universal - see the [LICENSE](LICENSE) file for details
