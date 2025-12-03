@@ -2,6 +2,7 @@
 
 import os
 import pandas as pd
+import json
 from colorama import init, Fore, Style
 
 # Initialize colorama
@@ -31,6 +32,14 @@ def write_to_excel(data, file_name="output.xlsx"):
         combined_df.to_excel(file_name, index=False)
     else:
         pd.DataFrame(data).to_excel(file_name, index=False)
+
+def output_json(results):
+    output = []
+    for result in results:
+        output.append(result)
+    print(json.dumps(output))
+
+
 
 
 def printer(**kwargs):
