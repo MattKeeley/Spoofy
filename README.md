@@ -19,6 +19,7 @@ Well, Spoofy is different and here is why:
 > 2. Accurate bulk lookups
 > 3. Custom, manually tested spoof logic (No guessing or speculating, real world test results)
 > 4. SPF DNS query counter
+> 5. Optional DKIM selector enumeration via API
 
 ## PASSING TESTS
 
@@ -30,19 +31,22 @@ Well, Spoofy is different and here is why:
 
 ```console
 Usage:
-    ./spoofy.py -d [DOMAIN] -o [stdout or xls] -t [NUMBER_OF_THREADS]
+    ./spoofy.py -d [DOMAIN] -o [stdout or xls] -t [NUMBER_OF_THREADS] [--dkim]
     OR
-    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout or xls] -t [NUMBER_OF_THREADS]
+    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout or xls] -t [NUMBER_OF_THREADS] [--dkim]
 
 Options:
-    -d  : Process a single domain.
-    -iL : Provide a file containing a list of domains to process.
-    -o  : Specify the output format: stdout (default) or xls.
-    -t  : Set the number of threads to use (default: 4).
+    -d      : Process a single domain.
+    -iL     : Provide a file containing a list of domains to process.
+    -o      : Specify the output format: stdout (default), xls, or json.
+    -t      : Set the number of threads to use (default: 4).
+    --dkim  : Enable DKIM selector enumeration via API (optional).
 
 Examples:
     ./spoofy.py -d example.com -t 10
+    ./spoofy.py -d example.com --dkim
     ./spoofy.py -iL domains.txt -o xls
+    ./spoofy.py -iL domains.txt -o json --dkim
 
 Install Dependencies:
     pip3 install -r requirements.txt

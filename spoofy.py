@@ -7,6 +7,7 @@ from queue import Queue
 from modules.dns import DNS
 from modules.spf import SPF
 from modules.dmarc import DMARC
+from modules.dkim import DKIM
 from modules.bimi import BIMI
 from modules.spoofing import Spoofing
 from modules import report
@@ -14,8 +15,8 @@ from modules import report
 print_lock = threading.Lock()
 
 
-def process_domain(domain):
-    """Process a domain to gather DNS, SPF, DMARC, and BIMI records, and evaluate spoofing potential."""
+def process_domain(domain, enable_dkim=False):
+    """Process a domain to gather DNS, SPF, DMARC, and BIMI records. Optionally enumerate DKIM selectors if enabled."""
     dns_info = DNS(domain)
     spf = SPF(domain, dns_info.dns_server)
     dmarc = DMARC(domain, dns_info.dns_server)
@@ -33,6 +34,11 @@ def process_domain(domain):
     dmarc_sp = dmarc.sp
     dmarc_fo = dmarc.fo
     dmarc_rua = dmarc.rua
+
+    dkim_record = None
+    if enable_dkim:
+        dkim = DKIM(domain, dns_info.dns_server)
+        dkim_record = dkim.dkim_record
 
     bimi_record = bimi_info.bimi_record
     bimi_version = bimi_info.version
@@ -70,6 +76,7 @@ def process_domain(domain):
         "DMARC_SP": dmarc_sp,
         "DMARC_FORENSIC_REPORT": dmarc_fo,
         "DMARC_AGGREGATE_REPORT": dmarc_rua,
+        "DKIM": dkim_record,
         "BIMI_RECORD": bimi_record,
         "BIMI_VERSION": bimi_version,
         "BIMI_LOCATION": bimi_location,
@@ -80,13 +87,13 @@ def process_domain(domain):
     return result
 
 
-def worker(domain_queue, print_lock, output, results):
+def worker(domain_queue, print_lock, output, results, enable_dkim=False):
     """Worker function to process domains and output results."""
     while True:
         domain = domain_queue.get()
         if domain is None:
             break
-        result = process_domain(domain)
+        result = process_domain(domain, enable_dkim=enable_dkim)
         with print_lock:
             if output == "stdout":
                 report.printer(**result)
@@ -97,7 +104,7 @@ def worker(domain_queue, print_lock, output, results):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Process domains to gather DNS, SPF, DMARC, and BIMI records."
+        description="Process domains to gather DNS, SPF, DMARC, and BIMI records. Use --dkim to enable DKIM selector enumeration."
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-d", type=str, help="Single domain to process.")
@@ -114,7 +121,9 @@ def main():
     parser.add_argument(
         "-t", type=int, default=4, help="Number of threads to use (default: 4)"
     )
-
+    parser.add_argument(
+        "--dkim", action="store_true", help="Enable DKIM selector enumeration via API"
+    )
 
     args = parser.parse_args()
 
@@ -133,7 +142,7 @@ def main():
     threads = []
     for _ in range(min(args.t, len(domains))):
         thread = threading.Thread(
-            target=worker, args=(domain_queue, print_lock, args.o, results)
+            target=worker, args=(domain_queue, print_lock, args.o, results, args.dkim)
         )
         thread.start()
         threads.append(thread)
