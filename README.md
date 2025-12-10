@@ -20,6 +20,7 @@ Well, Spoofy is different and here is why:
 > 3. Custom, manually tested spoof logic (No guessing or speculating, real world test results)
 > 4. SPF DNS query counter
 > 5. Optional DKIM selector enumeration via API
+> 6. DNSSEC check
 
 ## PASSING TESTS
 

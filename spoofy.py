@@ -10,6 +10,7 @@ from modules.dmarc import DMARC
 from modules.dkim import DKIM
 from modules.bimi import BIMI
 from modules.spoofing import Spoofing
+from modules.dnssec import DNSSEC
 from modules import report
 
 print_lock = threading.Lock()
@@ -60,6 +61,7 @@ def process_domain(domain, enable_dkim=False):
     domain_type = spoofing_info.domain_type
     spoofing_possible = spoofing_info.spoofing_possible
     spoofing_type = spoofing_info.spoofing_type
+    dnssec_info = DNSSEC(domain, dns_info.dns_server)
 
     result = {
         "DOMAIN": domain,
@@ -77,6 +79,7 @@ def process_domain(domain, enable_dkim=False):
         "DMARC_FORENSIC_REPORT": dmarc_fo,
         "DMARC_AGGREGATE_REPORT": dmarc_rua,
         "DKIM": dkim_record,
+        "DNSSEC_ENABLED": dnssec_info.dnssec_enabled,
         "BIMI_RECORD": bimi_record,
         "BIMI_VERSION": bimi_version,
         "BIMI_LOCATION": bimi_location,

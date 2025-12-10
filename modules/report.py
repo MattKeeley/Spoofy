@@ -64,6 +64,7 @@ def printer(**kwargs):
     authority = kwargs.get("BIMI_AUTHORITY")
     spoofable = kwargs.get("SPOOFING_POSSIBLE")
     spoofing_type = kwargs.get("SPOOFING_TYPE")
+    dnssec_enabled = kwargs.get("DNSSEC_ENABLED")
 
     output_message("[*]", f"Domain: {domain}", "indifferent")
     output_message("[*]", f"Is subdomain: {subdomain}", "indifferent")
@@ -130,6 +131,11 @@ def printer(**kwargs):
         output_message("[*]", f"DKIM selectors: \r\n{dkim_record}", "info")
     else:
         output_message("[?]", f"No known DKIM selectors enumerated on {domain}.", "warning")
+
+    if dnssec_enabled:
+        output_message("[*]", "DNSSEC: Enabled", "good")
+    else:
+        output_message("[?]", "DNSSEC: Not detected", "warning")
 
     if bimi_record:
         output_message("[*]", f"BIMI record: {bimi_record}", "info")
