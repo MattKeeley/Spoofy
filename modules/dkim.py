@@ -67,13 +67,8 @@ class DKIM:
             domain = record.get("domain", self.domain)
             value = record.get("value", "")
             
-            if len(value) > 128:
-                trimmed_value = value[:128] + "...(trimmed)"
-            else:
-                trimmed_value = value
-            
             combined_txt_records += (
-                f"[*]    {selector}._domainkey.{domain} -> {trimmed_value}\r\n"
+                f"[*]    {selector}._domainkey.{domain} -> {value}\r\n"
             )
         
         if combined_txt_records:
