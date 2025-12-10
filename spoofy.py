@@ -28,6 +28,7 @@ def process_domain(domain, enable_dkim=False):
 
     spf_record = spf.spf_record
     spf_all = spf.all_mechanism
+    spf_multiple_alls = spf.multiple_all_mechanisms
     spf_dns_query_count = spf.spf_dns_query_count
     spf_too_many_dns_queries = spf.too_many_dns_queries
 
@@ -79,7 +80,8 @@ def process_domain(domain, enable_dkim=False):
         "DOMAIN_TYPE": domain_type,
         "DNS_SERVER": dns_info.dns_server,
         "SPF": spf_record,
-        "SPF_MULTIPLE_ALLS": spf_all,
+        "SPF_ALL_MECHANISM": spf_all,
+        "SPF_MULTIPLE_ALLS": spf_multiple_alls,
         "SPF_NUM_DNS_QUERIES": spf_dns_query_count,
         "SPF_TOO_MANY_DNS_QUERIES": spf_too_many_dns_queries,
         "DMARC": dmarc_record,

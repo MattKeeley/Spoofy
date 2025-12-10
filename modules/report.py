@@ -44,18 +44,20 @@ def print_section_header(title):
     """Print a visually distinct section header."""
     print(f"\n{title}")
 
-def assess_spf_security(spf_record, spf_all, spf_dns_query_count):
+def assess_spf_security(spf_record, spf_all, spf_multiple_alls, spf_dns_query_count):
     """Assess SPF security posture and return appropriate level."""
     if not spf_record:
         return "bad"
     
     issues = 0
     
+    # Handle multiple 'all' mechanisms (boolean flag)
+    if spf_multiple_alls:
+        issues += 3  # Multiple 'all' mechanisms is very bad
+    
     # Handle SPF 'all' mechanism more comprehensively
     if spf_all is None:
         issues += 2  # Missing 'all' mechanism allows any server
-    elif spf_all == "2many":  # TODO: Refactor this magic string
-        issues += 3  # Multiple 'all' mechanisms is very bad
     elif spf_all in ["+all", "all", "?all"]:
         issues += 3  # Very permissive, dangerous
     elif spf_all == "~all":
@@ -125,7 +127,7 @@ def assess_overall_security(spf_level, dmarc_level, dnssec_enabled):
     else:
         return "bad"
 
-def assess_spoofability(spf_record, spf_all, dmarc_record, dmarc_policy):
+def assess_spoofability(spf_record, spf_all, spf_multiple_alls, dmarc_record, dmarc_policy):
     """Enhanced spoofability assessment based on actual security configuration."""
     # Calculate spoofability based on security controls
     spoofable_conditions = []
@@ -133,6 +135,8 @@ def assess_spoofability(spf_record, spf_all, dmarc_record, dmarc_policy):
     # SPF-based spoofability conditions
     if not spf_record:
         spoofable_conditions.append("No SPF record")
+    elif spf_multiple_alls:
+        spoofable_conditions.append("Multiple SPF 'all' mechanisms")
     elif spf_all in [None, "+all", "all", "?all"]:
         spoofable_conditions.append("Permissive SPF policy")
     elif spf_all == "~all":
@@ -164,7 +168,8 @@ def printer(**kwargs):
     subdomain = kwargs.get("DOMAIN_TYPE") == "subdomain"
     dns_server = kwargs.get("DNS_SERVER")
     spf_record = kwargs.get("SPF")
-    spf_all = kwargs.get("SPF_MULTIPLE_ALLS")
+    spf_all = kwargs.get("SPF_ALL_MECHANISM")
+    spf_multiple_alls = kwargs.get("SPF_MULTIPLE_ALLS", False)
     spf_dns_query_count = kwargs.get("SPF_NUM_DNS_QUERIES")
     spf_too_many_dns_queries = kwargs.get("SPF_TOO_MANY_DNS_QUERIES")
     dmarc_record = kwargs.get("DMARC")
@@ -188,12 +193,12 @@ def printer(**kwargs):
     dnssec_enabled = kwargs.get("DNSSEC_ENABLED")
 
     # Assess security levels for intelligent formatting
-    spf_level = assess_spf_security(spf_record, spf_all, spf_dns_query_count)
+    spf_level = assess_spf_security(spf_record, spf_all, spf_multiple_alls, spf_dns_query_count)
     dmarc_level = assess_dmarc_security(dmarc_record, p, pct, aspf, sp)
     overall_level = assess_overall_security(spf_level, dmarc_level, dnssec_enabled)
     
     # Enhanced spoofability assessment
-    enhanced_spoofable, enhanced_spoof_reason = assess_spoofability(spf_record, spf_all, dmarc_record, p)
+    enhanced_spoofable, enhanced_spoof_reason = assess_spoofability(spf_record, spf_all, spf_multiple_alls, dmarc_record, p)
 
     # DOMAIN INFORMATION SECTION
     print_section_header("DOMAIN INFORMATION")
@@ -226,11 +231,13 @@ def printer(**kwargs):
     if spf_record:
         output_message("[*]", f"SPF record: {spf_record}", "info")
         
+        # Check for multiple 'all' mechanisms first
+        if spf_multiple_alls:
+            output_message("[!]", "Multiple 'all' mechanisms detected - configuration error", "bad")
+        
         # Enhanced SPF 'all' mechanism assessment
         if spf_all is None:
             output_message("[!]", "SPF missing 'all' mechanism - allows ANY server to send mail", "bad")
-        elif spf_all == "2many":
-            output_message("[!]", "Multiple 'all' mechanisms detected - configuration error", "bad")
         elif spf_all in ["+all", "all"]:
             output_message("[!]", f"SPF all mechanism: {spf_all} - DANGEROUS: allows ANY server", "bad")
         elif spf_all == "?all":
