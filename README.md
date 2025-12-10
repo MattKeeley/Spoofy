@@ -21,6 +21,9 @@ Well, Spoofy is different and here is why:
 > 4. SPF DNS query counter
 > 5. Optional DKIM selector enumeration via API
 > 6. DNSSEC check
+> 7. Microsoft cloud tenancy detection and automatic tenant domain discovery
+> 8. MX record provider identification
+> 9. BIMI record analysis
 
 ## PASSING TESTS
 
@@ -32,26 +35,37 @@ Well, Spoofy is different and here is why:
 
 ```console
 Usage:
-    ./spoofy.py -d [DOMAIN] -o [stdout or xls] -t [NUMBER_OF_THREADS] [--dkim]
+    ./spoofy.py -d [DOMAIN] -o [stdout or xls] -t [NUMBER_OF_THREADS] [--dkim] [--expand-tenants]
     OR
-    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout or xls] -t [NUMBER_OF_THREADS] [--dkim]
+    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout or xls] -t [NUMBER_OF_THREADS] [--dkim] [--expand-tenants]
 
 Options:
-    -d      : Process a single domain.
-    -iL     : Provide a file containing a list of domains to process.
-    -o      : Specify the output format: stdout (default), xls, or json.
-    -t      : Set the number of threads to use (default: 4).
-    --dkim  : Enable DKIM selector enumeration via API (optional).
+    -d              : Process a single domain.
+    -iL             : Provide a file containing a list of domains to process.
+    -o              : Specify the output format: stdout (default), xls, or json.
+    -t              : Set the number of threads to use (default: 4).
+    --dkim          : Enable DKIM selector enumeration via API (optional).
+    --expand-tenants: Automatically discover and process Microsoft tenant domains (optional).
 
 Examples:
     ./spoofy.py -d example.com -t 10
     ./spoofy.py -d example.com --dkim
+    ./spoofy.py -d example.com --expand-tenants
     ./spoofy.py -iL domains.txt -o xls
-    ./spoofy.py -iL domains.txt -o json --dkim
+    ./spoofy.py -iL domains.txt -o json --dkim --expand-tenants
 
 Install Dependencies:
     pip3 install -r requirements.txt
 ```
+
+## MICROSOFT CLOUD TENANCY DETECTION
+
+When Spoofy detects that a domain is using Microsoft 365 (via SPF and MX records containing `include:spf.protection.outlook.com`), it can automatically discover associated tenant domains. This is particularly useful for finding additional attack surfaces during security assessments.
+
+**Tenant Domain Discovery:**
+- Input: `company.com` → Discovers: `company.onmicrosoft.com`, `company.mail.onmicrosoft.com`
+
+Use the `--expand-tenants` flag to automatically include these discovered domains in your assessment.
 
 ## HOW DO YOU KNOW ITS SPOOFABLE
 
@@ -64,11 +78,17 @@ The creation of the spoofability table involved listing every relevant SPF and D
 
 After the initial testing using Microsoft 365, some combinations were retested using Protonmail and Gmail due to the differences in their handling of banners in emails. Protonmail and Gmail can place spoofed mail in the inbox with a banner or in spam without a banner, leading to some SPF and DMARC combinations being reported as "Mailbox Dependent" when using Spoofy. In contrast, Microsoft 365 places both conditions in spam. The testing and data collection process took several days to complete, after which a good master table was compiled and used as the basis for the Spoofy spoofability logic.
 
+**Additional enhancements include:**
+- **MX Record Analysis**: Automatic detection of email providers (Microsoft Exchange Online, Google Workspace, ProtonMail, etc.)
+- **Cloud Tenancy Intelligence**: Leverages SPF includes and MX records to identify Microsoft 365 customers and discover associated tenant domains
+- **BIMI Record Support**: Analysis of Brand Indicators for Message Identification records
+- **DNSSEC Validation**: Checks for DNSSEC implementation
+
 ## DISCLAIMER
 
 > This tool is only for testing and academic purposes and can only be used where
 > strict consent has been given. Do not use it for illegal purposes! It is the
-> end user’s responsibility to obey all applicable local, state and federal laws.
+> end user's responsibility to obey all applicable local, state and federal laws.
 > Developers assume no liability and are not responsible for any misuse or damage
 > caused by this tool and software.
 

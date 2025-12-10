@@ -19,7 +19,7 @@ print_lock = threading.Lock()
 
 
 def process_domain(domain, enable_dkim=False):
-    """Process a domain to gather DNS, SPF, DMARC, MX, DNSSEC and BIMI records. Optionally enumerate DKIM selectors if enabled."""
+    """Process a domain to gather DNS, SPF, DMARC, MX, DNSSEC and BIMI records."""
     dns_info = DNS(domain)
     spf = SPF(domain, dns_info.dns_server)
     dmarc = DMARC(domain, dns_info.dns_server)
@@ -43,9 +43,9 @@ def process_domain(domain, enable_dkim=False):
     mx_provider = mx_info.provider
     is_microsoft = mx_info.is_microsoft_customer()
 
-    # Cloud tenancy detection
-    tenancy_info = CloudTenancy(domain, spf_record, mx_records, dns_info.dns_server)
-    discovered_domains = tenancy_info.get_verified_tenant_domains() if tenancy_info.should_auto_discover() else []
+    # Simplified cloud tenancy detection
+    tenancy_info = CloudTenancy(domain, spf_record)
+    tenant_domains = tenancy_info.get_tenant_domains() if tenancy_info.should_discover_tenants() else []
 
     dkim_record = None
     if enable_dkim:
@@ -100,7 +100,7 @@ def process_domain(domain, enable_dkim=False):
         "BIMI_AUTHORITY": bimi_authority,
         "SPOOFING_POSSIBLE": spoofing_possible,
         "SPOOFING_TYPE": spoofing_type,
-        "DISCOVERED_DOMAINS": discovered_domains,
+        "TENANT_DOMAINS": tenant_domains,
     }
     return result
 
@@ -112,14 +112,6 @@ def worker(domain_queue, print_lock, output, results, enable_dkim=False):
         if domain is None:
             break
         result = process_domain(domain, enable_dkim=enable_dkim)
-
-        # Handle discovered Microsoft tenant domains
-        discovered_domains = result.get("DISCOVERED_DOMAINS", [])
-        if discovered_domains:
-            with print_lock:
-                for discovered_domain in discovered_domains:
-                    print(f"[*] Microsoft tenant domain discovered: {discovered_domain}")
-                    domain_queue.put(discovered_domain)
 
         with print_lock:
             if output == "stdout":
@@ -151,6 +143,10 @@ def main():
     parser.add_argument(
         "--dkim", action="store_true", help="Enable DKIM selector enumeration via API"
     )
+    parser.add_argument(
+        "--expand-tenants", action="store_true", 
+        help="Automatically discover and process Microsoft tenant domains"
+    )
 
     args = parser.parse_args()
 
@@ -159,6 +155,22 @@ def main():
     elif args.iL:
         with open(args.iL, "r") as file:
             domains = [line.strip() for line in file]
+
+    # Expand tenant domains if requested
+    if args.expand_tenants:
+        initial_domains = domains.copy()
+        for domain in initial_domains:
+            # Quick check for Microsoft tenancy
+            dns_info = DNS(domain)
+            spf = SPF(domain, dns_info.dns_server)
+            tenancy_info = CloudTenancy(domain, spf.spf_record)
+            
+            if tenancy_info.should_discover_tenants():
+                tenant_domains = tenancy_info.get_tenant_domains()
+                for tenant_domain in tenant_domains:
+                    if tenant_domain not in domains:
+                        domains.append(tenant_domain)
+                        print(f"[*] Microsoft tenant domain discovered: {tenant_domain}")
 
     domain_queue = Queue()
     results = []
