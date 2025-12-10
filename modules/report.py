@@ -58,9 +58,13 @@ def printer(**kwargs):
     fo = kwargs.get("DMARC_FORENSIC_REPORT")
     rua = kwargs.get("DMARC_AGGREGATE_REPORT")
     dkim_record = kwargs.get("DKIM")
+    mx_records = kwargs.get("MX_RECORDS")
+    mx_provider = kwargs.get("MX_PROVIDER")
+    is_microsoft = kwargs.get("IS_MICROSOFT")
     bimi_record = kwargs.get("BIMI_RECORD")
     vbimi = kwargs.get("BIMI_VERSION")
     location = kwargs.get("BIMI_LOCATION")
+    discovered_domains = kwargs.get("DISCOVERED_DOMAINS")
     authority = kwargs.get("BIMI_AUTHORITY")
     spoofable = kwargs.get("SPOOFING_POSSIBLE")
     spoofing_type = kwargs.get("SPOOFING_TYPE")
@@ -69,6 +73,9 @@ def printer(**kwargs):
     output_message("[*]", f"Domain: {domain}", "indifferent")
     output_message("[*]", f"Is subdomain: {subdomain}", "indifferent")
     output_message("[*]", f"DNS Server: {dns_server}", "indifferent")
+
+    if is_microsoft:
+        output_message("[*]", "Microsoft cloud customer detected", "indifferent")
 
     if spf_record:
         output_message("[*]", f"SPF record: {spf_record}", "info")
@@ -90,25 +97,32 @@ def printer(**kwargs):
     else:
         output_message("[?]", "No SPF record found.", "warning")
 
+    if mx_records:
+        mx_list = ", ".join(mx_records)
+        output_message("[*]", f"MX records: {mx_list}", "info")
+        output_message("[*]", f"Email provider: {mx_provider}", "indifferent")
+    else:
+        output_message("[?]", "No MX records found.", "warning")
+
     if dmarc_record:
         output_message("[*]", f"DMARC record: {dmarc_record}", "info")
         output_message(
-            "[*]", f"Found DMARC policy: {p}" if p else "No DMARC policy found.", "info"
+            "[*]", f"Found DMARC policy: {p}" if p else "No DMARC policy found.", "warning"
         )
         output_message(
-            "[*]", f"Found DMARC pct: {pct}" if pct else "No DMARC pct found.", "info"
+            "[*]", f"Found DMARC pct: {pct}" if pct else "No DMARC pct found.", "warning"
         )
         output_message(
             "[*]",
             f"Found DMARC aspf: {aspf}" if aspf else "No DMARC aspf found.",
-            "info",
+            "warning",
         )
         output_message(
             "[*]",
             f"Found DMARC subdomain policy: {sp}"
             if sp
             else "No DMARC subdomain policy found.",
-            "info",
+            "warning",
         )
         output_message(
             "[*]",
@@ -147,5 +161,9 @@ def printer(**kwargs):
         level = "good" if spoofable else "bad"
         symbol = "[+]" if level == "good" else "[-]"
         output_message(symbol, spoofing_type, level)
+
+
+    if discovered_domains:
+        output_message("[*]", f"Microsoft tenant domains discovered: {", ".join(discovered_domains)}", "info")
 
     print()  # Padding

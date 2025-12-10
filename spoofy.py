@@ -9,18 +9,21 @@ from modules.spf import SPF
 from modules.dmarc import DMARC
 from modules.dkim import DKIM
 from modules.bimi import BIMI
+from modules.mx import MX
 from modules.spoofing import Spoofing
 from modules.dnssec import DNSSEC
+from modules.tenancy import CloudTenancy
 from modules import report
 
 print_lock = threading.Lock()
 
 
 def process_domain(domain, enable_dkim=False):
-    """Process a domain to gather DNS, SPF, DMARC, and BIMI records. Optionally enumerate DKIM selectors if enabled."""
+    """Process a domain to gather DNS, SPF, DMARC, MX, DNSSEC and BIMI records. Optionally enumerate DKIM selectors if enabled."""
     dns_info = DNS(domain)
     spf = SPF(domain, dns_info.dns_server)
     dmarc = DMARC(domain, dns_info.dns_server)
+    mx_info = MX(domain, dns_info.dns_server)
     bimi_info = BIMI(domain, dns_info.dns_server)
 
     spf_record = spf.spf_record
@@ -35,6 +38,14 @@ def process_domain(domain, enable_dkim=False):
     dmarc_sp = dmarc.sp
     dmarc_fo = dmarc.fo
     dmarc_rua = dmarc.rua
+
+    mx_records = mx_info.mx_records
+    mx_provider = mx_info.provider
+    is_microsoft = mx_info.is_microsoft_customer()
+
+    # Cloud tenancy detection
+    tenancy_info = CloudTenancy(domain, spf_record, mx_records, dns_info.dns_server)
+    discovered_domains = tenancy_info.get_verified_tenant_domains() if tenancy_info.should_auto_discover() else []
 
     dkim_record = None
     if enable_dkim:
@@ -78,6 +89,9 @@ def process_domain(domain, enable_dkim=False):
         "DMARC_SP": dmarc_sp,
         "DMARC_FORENSIC_REPORT": dmarc_fo,
         "DMARC_AGGREGATE_REPORT": dmarc_rua,
+        "MX_RECORDS": mx_records,
+        "MX_PROVIDER": mx_provider,
+        "IS_MICROSOFT": is_microsoft,
         "DKIM": dkim_record,
         "DNSSEC_ENABLED": dnssec_info.dnssec_enabled,
         "BIMI_RECORD": bimi_record,
@@ -86,6 +100,7 @@ def process_domain(domain, enable_dkim=False):
         "BIMI_AUTHORITY": bimi_authority,
         "SPOOFING_POSSIBLE": spoofing_possible,
         "SPOOFING_TYPE": spoofing_type,
+        "DISCOVERED_DOMAINS": discovered_domains,
     }
     return result
 
@@ -97,6 +112,15 @@ def worker(domain_queue, print_lock, output, results, enable_dkim=False):
         if domain is None:
             break
         result = process_domain(domain, enable_dkim=enable_dkim)
+
+        # Handle discovered Microsoft tenant domains
+        discovered_domains = result.get("DISCOVERED_DOMAINS", [])
+        if discovered_domains:
+            with print_lock:
+                for discovered_domain in discovered_domains:
+                    print(f"[*] Microsoft tenant domain discovered: {discovered_domain}")
+                    domain_queue.put(discovered_domain)
+
         with print_lock:
             if output == "stdout":
                 report.printer(**result)
