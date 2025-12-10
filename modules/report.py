@@ -50,21 +50,31 @@ def assess_spf_security(spf_record, spf_all, spf_dns_query_count):
         return "bad"
     
     issues = 0
+    
+    # Handle SPF 'all' mechanism more comprehensively
     if spf_all is None:
-        issues += 1
-    elif spf_all == "2many":
-        issues += 2
-    elif spf_all not in ["-all", "~all"]:
-        issues += 1
+        issues += 2  # Missing 'all' mechanism allows any server
+    elif spf_all == "2many":  # TODO: Refactor this magic string
+        issues += 3  # Multiple 'all' mechanisms is very bad
+    elif spf_all in ["+all", "all", "?all"]:
+        issues += 3  # Very permissive, dangerous
+    elif spf_all == "~all":
+        issues += 1  # Soft fail - moderate risk
+    elif spf_all == "-all":
+        issues += 0  # Hard fail - good security
+    else:
+        issues += 2  # Unknown/unexpected 'all' mechanism
         
+    # DNS query count assessment (RFC 7208 limit is 10)
     if spf_dns_query_count > 10:
-        issues += 2
+        issues += 2  # Exceeds RFC limit
     elif spf_dns_query_count > 7:
-        issues += 1
+        issues += 1  # Getting close to limit
         
-    if issues >= 3:
+    # Return security level based on issues
+    if issues >= 4:
         return "bad"
-    elif issues >= 1:
+    elif issues >= 2:
         return "warning"
     else:
         return "good"
@@ -73,21 +83,32 @@ def assess_dmarc_security(dmarc_record, policy, pct, aspf, sp):
     """Assess DMARC security posture and return appropriate level."""
     if not dmarc_record:
         return "bad"
-        
-    if policy in ["reject", "quarantine"]:
-        if pct:
-            try:
-                pct_val = int(pct)
-                if pct_val >= 100:
-                    return "good" if policy == "reject" else "warning"
-                else:
-                    return "warning"
-            except (ValueError, TypeError):
-                return "warning"
-        else:
-            return "good" if policy == "reject" else "warning"
+    
+    # Handle policy assessment
+    if policy == "reject":
+        base_level = "good"
+    elif policy == "quarantine":
+        base_level = "warning"
+    elif policy == "none" or not policy:
+        return "bad"  # No protection, allows spoofing
     else:
-        return "bad"
+        return "bad"  # Unknown policy
+        
+    # Handle percentage - anything less than 100% is partial deployment
+    if pct:
+        try:
+            pct_val = int(pct)
+            if pct_val == 100:
+                return base_level  # Full enforcement
+            elif pct_val >= 50:
+                return "warning"  # Partial enforcement
+            else:
+                return "bad"  # Minimal enforcement, mostly unprotected
+        except (ValueError, TypeError):
+            return "warning"  # Invalid percentage format
+    else:
+        # No pct specified defaults to 100%
+        return base_level
 
 def assess_overall_security(spf_level, dmarc_level, dnssec_enabled):
     """Assess overall domain security posture."""
@@ -103,6 +124,38 @@ def assess_overall_security(spf_level, dmarc_level, dnssec_enabled):
         return "warning" 
     else:
         return "bad"
+
+def assess_spoofability(spf_record, spf_all, dmarc_record, dmarc_policy):
+    """Enhanced spoofability assessment based on actual security configuration."""
+    # Calculate spoofability based on security controls
+    spoofable_conditions = []
+    
+    # SPF-based spoofability conditions
+    if not spf_record:
+        spoofable_conditions.append("No SPF record")
+    elif spf_all in [None, "+all", "all", "?all"]:
+        spoofable_conditions.append("Permissive SPF policy")
+    elif spf_all == "~all":
+        spoofable_conditions.append("SPF soft-fail only")
+    
+    # DMARC-based spoofability conditions  
+    if not dmarc_record:
+        spoofable_conditions.append("No DMARC record")
+    elif dmarc_policy in ["none", None]:
+        spoofable_conditions.append("DMARC policy set to 'none'")
+    
+    # Determine spoofability
+    if spoofable_conditions:
+        is_spoofable = True
+        spoof_reason = f"Domain spoofable via: {', '.join(spoofable_conditions)}"
+    else:
+        is_spoofable = False
+        if dmarc_policy == "reject":
+            spoof_reason = "Domain protected - DMARC reject policy with proper SPF"
+        else:
+            spoof_reason = "Domain partially protected - DMARC quarantine with proper SPF"
+    
+    return is_spoofable, spoof_reason
 
 
 def printer(**kwargs):
@@ -138,6 +191,9 @@ def printer(**kwargs):
     spf_level = assess_spf_security(spf_record, spf_all, spf_dns_query_count)
     dmarc_level = assess_dmarc_security(dmarc_record, p, pct, aspf, sp)
     overall_level = assess_overall_security(spf_level, dmarc_level, dnssec_enabled)
+    
+    # Enhanced spoofability assessment
+    enhanced_spoofable, enhanced_spoof_reason = assess_spoofability(spf_record, spf_all, dmarc_record, p)
 
     # DOMAIN INFORMATION SECTION
     print_section_header("DOMAIN INFORMATION")
@@ -170,64 +226,76 @@ def printer(**kwargs):
     if spf_record:
         output_message("[*]", f"SPF record: {spf_record}", "info")
         
-        # Intelligent SPF all mechanism assessment
+        # Enhanced SPF 'all' mechanism assessment
         if spf_all is None:
-            output_message("[!]", "SPF missing 'all' mechanism - allows any server", "bad")
+            output_message("[!]", "SPF missing 'all' mechanism - allows ANY server to send mail", "bad")
         elif spf_all == "2many":
-            output_message("[!]", "Multiple 'all' mechanisms detected", "bad")
+            output_message("[!]", "Multiple 'all' mechanisms detected - configuration error", "bad")
+        elif spf_all in ["+all", "all"]:
+            output_message("[!]", f"SPF all mechanism: {spf_all} - DANGEROUS: allows ANY server", "bad")
+        elif spf_all == "?all":
+            output_message("[!]", f"SPF all mechanism: {spf_all} - neutral policy, no protection", "bad")
         elif spf_all == "-all":
-            output_message("[+]", f"SPF all mechanism: {spf_all} (strict)", "good")
+            output_message("[+]", f"SPF all mechanism: {spf_all} (strict - rejects unauthorized)", "good")
         elif spf_all == "~all":
-            output_message("[?]", f"SPF all mechanism: {spf_all} (soft fail)", "warning")
+            output_message("[?]", f"SPF all mechanism: {spf_all} (soft fail - accepts but marks)", "warning")
         else:
-            output_message("[!]", f"SPF all mechanism: {spf_all} (permissive)", "bad")
+            output_message("[!]", f"SPF all mechanism: {spf_all} (unknown/unexpected)", "bad")
             
-        # Intelligent DNS query count assessment
+        # Enhanced DNS query count assessment
         if spf_dns_query_count <= 5:
             output_message("[+]", f"SPF DNS queries: {spf_dns_query_count} (efficient)", "good")
         elif spf_dns_query_count <= 10:
-            output_message("[?]", f"SPF DNS queries: {spf_dns_query_count} (acceptable)", "warning")
+            output_message("[?]", f"SPF DNS queries: {spf_dns_query_count} (acceptable, RFC limit is 10)", "warning")
         else:
-            output_message("[!]", f"SPF DNS queries: {spf_dns_query_count} (exceeds RFC limit)", "bad")
+            output_message("[!]", f"SPF DNS queries: {spf_dns_query_count} (EXCEEDS RFC 7208 limit of 10)", "bad")
     else:
-        output_message("[!]", "No SPF record found", "bad")
+        output_message("[!]", "No SPF record found - allows spoofing from any server", "bad")
 
     # DMARC ANALYSIS SECTION  
     print_section_header("DMARC ANALYSIS")
     if dmarc_record:
         output_message("[*]", f"DMARC record: {dmarc_record}", "info")
         
-        # Intelligent policy assessment
+        # Enhanced policy assessment with clear security implications
         if p == "reject":
             policy_level = "good"
             policy_symbol = "[+]"
+            policy_msg = f"DMARC policy: {p} (blocks unauthorized email)"
         elif p == "quarantine":
             policy_level = "warning"
             policy_symbol = "[?]"
+            policy_msg = f"DMARC policy: {p} (quarantines unauthorized email)"
+        elif p == "none" or not p:
+            policy_level = "bad"
+            policy_symbol = "[!]"
+            policy_msg = f"DMARC policy: {p or 'none'} - ALLOWS SPOOFING (no enforcement)"
         else:
             policy_level = "bad"
             policy_symbol = "[!]"
-        output_message(policy_symbol, f"DMARC policy: {p or 'none'}", policy_level)
+            policy_msg = f"DMARC policy: {p} (unknown policy)"
+        output_message(policy_symbol, policy_msg, policy_level)
         
-        # Intelligent percentage assessment
+        # Enhanced percentage assessment
         if pct:
             try:
                 pct_val = int(pct)
                 if pct_val == 100:
                     output_message("[+]", f"DMARC percentage: {pct}% (full enforcement)", "good")
                 elif pct_val >= 50:
-                    output_message("[?]", f"DMARC percentage: {pct}% (partial enforcement)", "warning")  
+                    output_message("[?]", f"DMARC percentage: {pct}% (partial deployment - {100-pct_val}% unprotected)", "warning")  
                 else:
-                    output_message("[!]", f"DMARC percentage: {pct}% (minimal enforcement)", "bad")
+                    output_message("[!]", f"DMARC percentage: {pct}% (testing phase - {100-pct_val}% unprotected)", "bad")
             except (ValueError, TypeError):
                 output_message("[?]", f"DMARC percentage: {pct} (invalid format)", "warning")
         else:
-            output_message("[*]", "DMARC percentage: 100% (default)", "indifferent")
+            output_message("[*]", "DMARC percentage: 100% (default full enforcement)", "indifferent")
             
-        # Other DMARC fields with intelligent assessment
+        # Other DMARC fields with security context
         if aspf:
             aspf_level = "good" if aspf == "s" else "warning"
-            output_message("[*]", f"DMARC ASPF alignment: {aspf}", aspf_level)
+            aspf_msg = f"DMARC ASPF alignment: {aspf} ({'strict' if aspf == 's' else 'relaxed'})"
+            output_message("[*]", aspf_msg, aspf_level)
             
         if sp:
             output_message("[*]", f"DMARC subdomain policy: {sp}", "info")
@@ -237,7 +305,7 @@ def printer(**kwargs):
         if rua:
             output_message("[*]", f"Aggregate reporting: {rua}", "indifferent")
     else:
-        output_message("[!]", "No DMARC record found", "bad")
+        output_message("[!]", "No DMARC record found - ALLOWS EMAIL SPOOFING", "bad")
 
     # ADDITIONAL SECURITY SECTION
     print_section_header("ADDITIONAL SECURITY")
@@ -262,18 +330,25 @@ def printer(**kwargs):
         output_message("[*]", f"BIMI authority: {authority}", "info")
 
     # SPOOFABILITY ASSESSMENT SECTION
+    print_section_header("SPOOFABILITY ASSESSMENT")
+    
+    # Use enhanced spoofability assessment as primary
+    level = "bad" if enhanced_spoofable else "good"
+    symbol = "[!]" if enhanced_spoofable else "[+]"
+    output_message(symbol, enhanced_spoof_reason, level)
+    
+    # Show original spoofing analysis if available for comparison
     if spoofing_type:
-        print_section_header("SPOOFABILITY ASSESSMENT")
-        level = "good" if not spoofable else "bad"
-        symbol = "[+]" if level == "good" else "[!]"
-        output_message(symbol, spoofing_type, level)
+        original_level = "good" if not spoofable else "bad"
+        original_symbol = "[*]" if not spoofable else "[*]"
+        output_message(original_symbol, f"Original analysis: {spoofing_type}", "indifferent")
         
-        # Overall security assessment
-        if overall_level == "good":
-            output_message("[+]", "Overall security posture: STRONG", "good")
-        elif overall_level == "warning":
-            output_message("[?]", "Overall security posture: MODERATE", "warning")
-        else:
-            output_message("[!]", "Overall security posture: WEAK", "bad")
+    # Overall security assessment
+    if overall_level == "good":
+        output_message("[+]", "Overall security posture: STRONG", "good")
+    elif overall_level == "warning":
+        output_message("[?]", "Overall security posture: MODERATE", "warning")
+    else:
+        output_message("[!]", "Overall security posture: WEAK", "bad")
 
     print(f"\n{'═' * 60}\n")  # Final separator
