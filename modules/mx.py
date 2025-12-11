@@ -51,7 +51,9 @@ class MX:
         elif "sendgrid.net" in mx_hostnames:
             return "SendGrid"
         elif "ppe-hosted.com" in mx_hostnames:
-            return "ProofPoint (potentially Exchange connector)"
+            return "ProofPoint (Exchange connector?)"
+        elif "mimecast.com" in mx_hostnames:
+            return "Mimecast (Exchange connector?)"
         else:
             return "Custom/Unknown"
 
