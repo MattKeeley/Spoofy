@@ -3,6 +3,10 @@
 import dns.resolver
 import re
 
+# SPF Analysis Constants
+SPF_MULTIPLE_ALL_MECHANISMS = "MULTIPLE_ALL"
+SPF_NO_ALL_MECHANISM = None
+
 
 class SPF:
     def __init__(self, domain, dns_server=None):
@@ -12,9 +16,10 @@ class SPF:
         self.all_mechanism = None
         self.spf_dns_query_count = 0
         self.too_many_dns_queries = False
+        self.multiple_all_mechanisms = False
 
         if self.spf_record:
-            self.all_mechanism = self.get_spf_all_string()
+            self.all_mechanism, self.multiple_all_mechanisms = self.get_spf_all_string()
             self.spf_dns_query_count = self.get_spf_dns_queries()
             self.too_many_dns_queries = self.spf_dns_query_count > 10
 
@@ -35,17 +40,16 @@ class SPF:
             return None
 
     def get_spf_all_string(self):
-        """Returns the string value of the 'all' mechanism in the SPF record."""
-
+        """Returns the string value of the 'all' mechanism and whether multiple exist."""
         spf_record = self.spf_record
         visited_domains = set()
 
         while spf_record:
             all_matches = re.findall(r"[-~?+]all", spf_record)
             if len(all_matches) == 1:
-                return all_matches[0]
+                return all_matches[0], False
             elif len(all_matches) > 1:
-                return "2many"
+                return all_matches[0], True  # Return first match but flag multiple
 
             redirect_match = re.search(r"redirect=([\w.-]+)", spf_record)
             if redirect_match:
@@ -57,7 +61,7 @@ class SPF:
             else:
                 break
 
-        return None
+        return None, False
 
     def get_spf_dns_queries(self):
         """Returns the number of dns queries, redirects, and other mechanisms in the SPF record for a given domain."""
@@ -97,6 +101,7 @@ class SPF:
         return (
             f"SPF Record: {self.spf_record}\n"
             f"All Mechanism: {self.all_mechanism}\n"
+            f"Multiple All Mechanisms: {self.multiple_all_mechanisms}\n"
             f"DNS Query Count: {self.spf_dns_query_count}\n"
             f"Too Many DNS Queries: {self.too_many_dns_queries}"
         )
