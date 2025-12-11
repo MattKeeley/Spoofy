@@ -44,88 +44,27 @@ def print_section_header(title):
     """Print a visually distinct section header."""
     print(f"\n{title}")
 
-def assess_spf_security(spf_record, spf_all, spf_multiple_alls, spf_dns_query_count):
-    """Assess SPF security posture and return appropriate level."""
-    if not spf_record:
-        return "bad"
-    
-    issues = 0
-    
-    # Handle multiple 'all' mechanisms (boolean flag)
-    if spf_multiple_alls:
-        issues += 3  # Multiple 'all' mechanisms is very bad
-    
-    # Handle SPF 'all' mechanism more comprehensively
-    if spf_all is None:
-        issues += 2  # Missing 'all' mechanism allows any server
-    elif spf_all in ["+all", "all", "?all"]:
-        issues += 3  # Very permissive, dangerous
-    elif spf_all == "~all":
-        issues += 1  # Soft fail - moderate risk
-    elif spf_all == "-all":
-        issues += 0  # Hard fail - good security
-    else:
-        issues += 2  # Unknown/unexpected 'all' mechanism
-        
-    # DNS query count assessment (RFC 7208 limit is 10)
-    if spf_dns_query_count > 10:
-        issues += 2  # Exceeds RFC limit
-    elif spf_dns_query_count > 7:
-        issues += 1  # Getting close to limit
-        
-    # Return security level based on issues
-    if issues >= 4:
-        return "bad"
-    elif issues >= 2:
-        return "warning"
-    else:
-        return "good"
 
-def assess_dmarc_security(dmarc_record, policy, pct, aspf, sp):
-    """Assess DMARC security posture and return appropriate level."""
-    if not dmarc_record:
-        return "bad"
-    
-    # Handle policy assessment
-    if policy == "reject":
+
+
+
+def assess_overall_security(spoofing_possible, dnssec_enabled):
+    """Assess overall domain security posture using spoofing.py's authoritative assessment."""
+    # Base security level from spoofing assessment
+    if spoofing_possible is False:
         base_level = "good"
-    elif policy == "quarantine":
-        base_level = "warning"
-    elif policy == "none" or not policy:
-        return "bad"  # No protection, allows spoofing
+    elif spoofing_possible is None:
+        base_level = "warning"  
     else:
-        return "bad"  # Unknown policy
+        base_level = "bad"
         
-    # Handle percentage - anything less than 100% is partial deployment
-    if pct:
-        try:
-            pct_val = int(pct)
-            if pct_val == 100:
-                return base_level  # Full enforcement
-            elif pct_val >= 50:
-                return "warning"  # Partial enforcement
-            else:
-                return "bad"  # Minimal enforcement, mostly unprotected
-        except (ValueError, TypeError):
-            return "warning"  # Invalid percentage format
-    else:
-        # No pct specified defaults to 100%
-        return base_level
-
-def assess_overall_security(spf_level, dmarc_level, dnssec_enabled):
-    """Assess overall domain security posture."""
-    levels = {"good": 3, "warning": 2, "bad": 1}
-    
-    score = levels.get(spf_level, 1) + levels.get(dmarc_level, 1)
-    if dnssec_enabled:
-        score += 1
-        
-    if score >= 7:
+    # DNSSEC provides additional security
+    if dnssec_enabled and base_level == "good":
         return "good"
-    elif score >= 5:
-        return "warning" 
+    elif dnssec_enabled:
+        return "warning" if base_level == "bad" else "good"
     else:
-        return "bad"
+        return base_level
 
 def map_spoofing_to_level(spoofing_possible):
     """Map spoofing.py assessment to display level."""
@@ -178,10 +117,8 @@ def printer(**kwargs):
     spoofing_possible = kwargs.get("SPOOFING_POSSIBLE")
     spoofing_type = kwargs.get("SPOOFING_TYPE")
 
-    # Assess security levels for intelligent formatting
-    spf_level = assess_spf_security(spf_record, spf_all, spf_multiple_alls, spf_dns_query_count)
-    dmarc_level = assess_dmarc_security(dmarc_record, p, pct, aspf, sp)
-    overall_level = assess_overall_security(spf_level, dmarc_level, dnssec_enabled)
+    # Overall security assessment using spoofing.py's comprehensive evaluation
+    overall_level = assess_overall_security(spoofing_possible, dnssec_enabled)
 
     # DOMAIN INFORMATION SECTION
     print_section_header("DOMAIN INFORMATION")
