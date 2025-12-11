@@ -127,43 +127,27 @@ def assess_overall_security(spf_level, dmarc_level, dnssec_enabled):
     else:
         return "bad"
 
-def assess_spoofability(spf_record, spf_all, spf_multiple_alls, dmarc_record, dmarc_policy):
-    """Enhanced spoofability assessment based on actual security configuration."""
-    # Calculate spoofability based on security controls
-    spoofable_conditions = []
-    
-    # SPF-based spoofability conditions
-    if not spf_record:
-        spoofable_conditions.append("No SPF record")
-    elif spf_multiple_alls:
-        spoofable_conditions.append("Multiple SPF 'all' mechanisms")
-    elif spf_all in [None, "+all", "all", "?all"]:
-        spoofable_conditions.append("Permissive SPF policy")
-    elif spf_all == "~all":
-        spoofable_conditions.append("SPF soft-fail only")
-    
-    # DMARC-based spoofability conditions  
-    if not dmarc_record:
-        spoofable_conditions.append("No DMARC record")
-    elif dmarc_policy in ["none", None]:
-        spoofable_conditions.append("DMARC policy set to 'none'")
-    
-    # Determine spoofability
-    if spoofable_conditions:
-        is_spoofable = True
-        spoof_reason = f"Domain spoofable via: {', '.join(spoofable_conditions)}"
-    else:
-        is_spoofable = False
-        if dmarc_policy == "reject":
-            spoof_reason = "Domain protected - DMARC reject policy with proper SPF"
-        else:
-            spoof_reason = "Domain partially protected - DMARC quarantine with proper SPF"
-    
-    return is_spoofable, spoof_reason
+def map_spoofing_to_level(spoofing_possible):
+    """Map spoofing.py assessment to display level."""
+    if spoofing_possible is True:
+        return "bad"
+    elif spoofing_possible is False:
+        return "good"
+    else:  # None (maybe spoofable)
+        return "warning"
+
+def get_spoofing_symbol(spoofing_possible):
+    """Get appropriate symbol for spoofing assessment."""
+    if spoofing_possible is True:
+        return "[!]"
+    elif spoofing_possible is False:
+        return "[+]"
+    else:  # None (maybe spoofable)
+        return "[?]"
 
 
 def printer(**kwargs):
-    """Enhanced utility function with improved readability and flexible conditional logic."""
+    """Enhanced utility function using spoofing.py's authoritative assessment."""
     domain = kwargs.get("DOMAIN")
     subdomain = kwargs.get("DOMAIN_TYPE") == "subdomain"
     dns_server = kwargs.get("DNS_SERVER")
@@ -188,17 +172,16 @@ def printer(**kwargs):
     location = kwargs.get("BIMI_LOCATION")
     tenant_domains = kwargs.get("TENANT_DOMAINS")
     authority = kwargs.get("BIMI_AUTHORITY")
-    spoofable = kwargs.get("SPOOFING_POSSIBLE")
-    spoofing_type = kwargs.get("SPOOFING_TYPE")
     dnssec_enabled = kwargs.get("DNSSEC_ENABLED")
+    
+    # Use spoofing.py's authoritative assessment
+    spoofing_possible = kwargs.get("SPOOFING_POSSIBLE")
+    spoofing_type = kwargs.get("SPOOFING_TYPE")
 
     # Assess security levels for intelligent formatting
     spf_level = assess_spf_security(spf_record, spf_all, spf_multiple_alls, spf_dns_query_count)
     dmarc_level = assess_dmarc_security(dmarc_record, p, pct, aspf, sp)
     overall_level = assess_overall_security(spf_level, dmarc_level, dnssec_enabled)
-    
-    # Enhanced spoofability assessment
-    enhanced_spoofable, enhanced_spoof_reason = assess_spoofability(spf_record, spf_all, spf_multiple_alls, dmarc_record, p)
 
     # DOMAIN INFORMATION SECTION
     print_section_header("DOMAIN INFORMATION")
@@ -336,19 +319,17 @@ def printer(**kwargs):
         output_message("[*]", f"BIMI location: {location}", "info")
         output_message("[*]", f"BIMI authority: {authority}", "info")
 
-    # SPOOFABILITY ASSESSMENT SECTION
+    # SPOOFABILITY ASSESSMENT SECTION - Uses spoofing.py's authoritative assessment
     print_section_header("SPOOFABILITY ASSESSMENT")
     
-    # Use enhanced spoofability assessment as primary
-    level = "bad" if enhanced_spoofable else "good"
-    symbol = "[!]" if enhanced_spoofable else "[+]"
-    output_message(symbol, enhanced_spoof_reason, level)
-    
-    # Show original spoofing analysis if available for comparison
     if spoofing_type:
-        original_level = "good" if not spoofable else "bad"
-        original_symbol = "[*]" if not spoofable else "[*]"
-        output_message(original_symbol, f"Original analysis: {spoofing_type}", "indifferent")
+        # Use spoofing.py's comprehensive assessment
+        spoofing_level = map_spoofing_to_level(spoofing_possible)
+        spoofing_symbol = get_spoofing_symbol(spoofing_possible)
+        output_message(spoofing_symbol, spoofing_type, spoofing_level)
+    else:
+        # Fallback if no spoofing assessment available
+        output_message("[?]", "No spoofing assessment available", "warning")
         
     # Overall security assessment
     if overall_level == "good":
@@ -358,4 +339,4 @@ def printer(**kwargs):
     else:
         output_message("[!]", "Overall security posture: WEAK", "bad")
 
-    print(f"\n{'═' * 60}\n")  # Final separator
+    print(f"\n{'─' * 60}\n")  # Final separator
