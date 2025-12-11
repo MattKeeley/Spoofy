@@ -155,9 +155,9 @@ def printer(**kwargs):
         if spf_multiple_alls:
             output_message("[!]", "Multiple 'all' mechanisms detected - configuration error", "bad")
         
-        # Enhanced SPF 'all' mechanism assessment
+        # SPF 'all' mechanism information
         if spf_all is None:
-            output_message("[!]", "SPF missing 'all' mechanism - allows ANY server to send mail", "bad")
+            output_message("[*]", "SPF 'all' mechanism: Not present", "bad")
         elif spf_all in ["+all", "all"]:
             output_message("[!]", f"SPF all mechanism: {spf_all} - DANGEROUS: allows ANY server", "bad")
         elif spf_all == "?all":
@@ -177,7 +177,7 @@ def printer(**kwargs):
         else:
             output_message("[!]", f"SPF DNS queries: {spf_dns_query_count} (EXCEEDS RFC 7208 limit of 10)", "bad")
     else:
-        output_message("[!]", "No SPF record found - allows spoofing from any server", "bad")
+        output_message("[*]", "SPF record: Not found", "info")
 
     # DMARC ANALYSIS SECTION  
     print_section_header("DMARC ANALYSIS")
