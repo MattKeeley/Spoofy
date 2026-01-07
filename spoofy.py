@@ -147,7 +147,7 @@ def main():
     )
     parser.add_argument(
         "--expand-tenants", action="store_true", 
-        help="Automatically discover and process Microsoft tenant domains"
+        help="Automatically discover and process Microsoft tenant domains (.onmicrosoft.com) for all domains"
     )
 
     args = parser.parse_args()
@@ -162,17 +162,13 @@ def main():
     if args.expand_tenants:
         initial_domains = domains.copy()
         for domain in initial_domains:
-            # Quick check for Microsoft tenancy
-            dns_info = DNS(domain)
-            spf = SPF(domain, dns_info.dns_server)
-            tenancy_info = CloudTenancy(domain, spf.spf_record)
-            
-            if tenancy_info.should_discover_tenants():
-                tenant_domains = tenancy_info.get_tenant_domains()
-                for tenant_domain in tenant_domains:
-                    if tenant_domain not in domains:
-                        domains.append(tenant_domain)
-                        print(f"[*] Microsoft tenant domain discovered: {tenant_domain}")
+            # Generate tenant domains for all domains
+            tenancy_info = CloudTenancy(domain)
+            tenant_domains = tenancy_info.get_tenant_domains(force=True)
+            for tenant_domain in tenant_domains:
+                if tenant_domain not in domains:
+                    domains.append(tenant_domain)
+                    print(f"[*] Microsoft tenant domain discovered: {tenant_domain}")
 
     domain_queue = Queue()
     results = []

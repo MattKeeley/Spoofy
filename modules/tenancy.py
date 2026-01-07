@@ -12,9 +12,9 @@ class CloudTenancy:
             return False
         return "include:spf.protection.outlook.com" in self.spf_record.lower()
         
-    def get_tenant_domains(self):
+    def get_tenant_domains(self, force=False):
         """Generate Microsoft tenant domains using simple pattern"""
-        if not self.is_microsoft_tenant:
+        if not force and not self.is_microsoft_tenant:
             return []
             
         # Extract domain name (before first dot) unless already onmicrosoft domain
