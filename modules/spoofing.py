@@ -1,7 +1,210 @@
 # modules/spoofing.py
 
 import tldextract
+from functools import lru_cache
 from .syntax import validate_record_syntax
+
+# Generated lookup table from Master_Table.xlsx - 198 empirically tested configurations
+SPOOFABILITY_LOOKUP = {
+    ('-all', 'No DMARC'): 0,
+    ('-all', 'p=quarantine, sp=none'): 1,
+    ('-all', 'p=reject, sp=none'): 1,
+    ('-all', 'p=none, sp=none, aspf=r'): 1,
+    ('-all', 'p=none, sp=none, aspf=s'): 1,
+    ('-all', 'p=quarantine, sp=none, aspf=r'): 1,
+    ('-all', 'p=reject, sp=none, aspf=r'): 1,
+    ('-all', 'p=none, sp=quarantine, aspf=r'): 2,
+    ('-all', 'p=none, sp=reject, aspf=r'): 2,
+    ('all-', 'p=none'): 4,
+    ('all-', 'p=none, aspf=r'): 4,
+    ('all-', 'p=none, aspf=s'): 4,
+    ('all-', 'p=none, sp=quarantine'): 5,
+    ('all-', 'p=none, sp=reject'): 5,
+    ('all-', 'p=none, sp=none'): 7,
+    ('all-', 'p=quarantine'): 8,
+    ('all-', 'p=reject'): 8,
+    ('all-', 'p=quarantine, sp=quarantine'): 8,
+    ('all-', 'p=quarantine, sp=reject'): 8,
+    ('all-', 'p=reject, sp=quarantine'): 8,
+    ('all-', 'p=reject, sp=reject'): 8,
+    ('all-', 'p=none, sp=quarantine, aspf=s'): 8,
+    ('all-', 'p=none, sp=reject, aspf=s'): 8,
+    ('all-', 'p=quarantine, sp=none, aspf=s'): 8,
+    ('all-', 'p=quarantine, sp=quarantine, aspf=r'): 8,
+    ('all-', 'p=quarantine, sp=quarantine, aspf=s'): 8,
+    ('all-', 'p=quarantine, sp=reject, aspf=r'): 8,
+    ('all-', 'p=quarantine, sp=reject, aspf=s'): 8,
+    ('all-', 'p=reject, sp=none, aspf=s'): 8,
+    ('all-', 'p=reject, sp=quarantine, aspf=r'): 8,
+    ('all-', 'p=reject, sp=quarantine, aspf=s'): 8,
+    ('all-', 'p=reject, sp=reject, aspf=r'): 8,
+    ('all-', 'p=reject, sp=reject, aspf=s'): 8,
+    ('all?', 'p=none, aspf=r'): 0,
+    ('all?', 'p=none, sp=none, aspf=r'): 0,
+    ('all?', 'No DMARC'): 0,
+    ('all?', 'p=quarantine, sp=none, aspf=r'): 1,
+    ('all?', 'p=quarantine, sp=none, aspf=s'): 1,
+    ('all?', 'p=reject, sp=none, aspf=r'): 1,
+    ('all?', 'p=reject, sp=none, aspf=s'): 1,
+    ('all?', 'p=none'): 4,
+    ('all?', 'p=none, sp=none'): 4,
+    ('all?', 'p=none, aspf=s'): 4,
+    ('all?', 'p=none, sp=none, aspf=s'): 4,
+    ('all?', 'p=none, sp=quarantine'): 5,
+    ('all?', 'p=none, sp=reject'): 5,
+    ('all?', 'p=none, sp=quarantine, aspf=r'): 5,
+    ('all?', 'p=none, sp=quarantine, aspf=s'): 5,
+    ('all?', 'p=none, sp=reject, aspf=r'): 5,
+    ('all?', 'p=none, sp=reject, aspf=s'): 5,
+    ('all?', 'p=quarantine, sp=none'): 6,
+    ('all?', 'p=reject, sp=none'): 6,
+    ('all?', 'p=quarantine'): 8,
+    ('all?', 'p=reject'): 8,
+    ('all?', 'p=quarantine, sp=quarantine'): 8,
+    ('all?', 'p=quarantine, sp=reject'): 8,
+    ('all?', 'p=reject, sp=quarantine'): 8,
+    ('all?', 'p=reject, sp=reject'): 8,
+    ('all?', 'p=quarantine, sp=quarantine, aspf=r'): 8,
+    ('all?', 'p=quarantine, sp=quarantine, aspf=s'): 8,
+    ('all?', 'p=quarantine, sp=reject, aspf=r'): 8,
+    ('all?', 'p=quarantine, sp=reject, aspf=s'): 8,
+    ('all?', 'p=reject, sp=quarantine, aspf=r'): 8,
+    ('all?', 'p=reject, sp=quarantine, aspf=s'): 8,
+    ('all?', 'p=reject, sp=reject, aspf=r'): 8,
+    ('all?', 'p=reject, sp=reject, aspf=s'): 8,
+    ('all+', 'p=none'): 4,
+    ('all+', 'p=quarantine'): 4,
+    ('all+', 'p=reject'): 4,
+    ('all+', 'p=none, sp=none'): 4,
+    ('all+', 'p=none, sp=quarantine'): 4,
+    ('all+', 'p=none, sp=reject'): 4,
+    ('all+', 'p=none, aspf=r'): 4,
+    ('all+', 'p=none, aspf=s'): 4,
+    ('all+', 'p=quarantine, sp=none'): 4,
+    ('all+', 'p=quarantine, sp=quarantine'): 4,
+    ('all+', 'p=quarantine, sp=reject'): 4,
+    ('all+', 'p=reject, sp=none'): 4,
+    ('all+', 'p=reject, sp=quarantine'): 4,
+    ('all+', 'p=reject, sp=reject'): 4,
+    ('all+', 'p=none, sp=none, aspf=r'): 4,
+    ('all+', 'p=none, sp=none, aspf=s'): 4,
+    ('all+', 'p=none, sp=quarantine, aspf=r'): 4,
+    ('all+', 'p=none, sp=quarantine, aspf=s'): 4,
+    ('all+', 'p=none, sp=reject, aspf=r'): 4,
+    ('all+', 'p=none, sp=reject, aspf=s'): 4,
+    ('all+', 'p=quarantine, sp=none, aspf=r'): 4,
+    ('all+', 'p=quarantine, sp=none, aspf=s'): 4,
+    ('all+', 'p=quarantine, sp=quarantine, aspf=r'): 4,
+    ('all+', 'p=quarantine, sp=quarantine, aspf=s'): 4,
+    ('all+', 'p=quarantine, sp=reject, aspf=r'): 4,
+    ('all+', 'p=quarantine, sp=reject, aspf=s'): 4,
+    ('all+', 'p=reject, sp=none, aspf=r'): 4,
+    ('all+', 'p=reject, sp=none, aspf=s'): 4,
+    ('all+', 'p=reject, sp=quarantine, aspf=r'): 4,
+    ('all+', 'p=reject, sp=quarantine, aspf=s'): 4,
+    ('all+', 'p=reject, sp=reject, aspf=r'): 4,
+    ('all+', 'p=reject, sp=reject, aspf=s'): 4,
+    ('all+', 'No DMARC'): 4,
+    ('all~', 'p=none, sp=none'): 0,
+    ('all~', 'No DMARC'): 0,
+    ('all~', 'p=quarantine, sp=none'): 1,
+    ('all~', 'p=reject, sp=none'): 1,
+    ('all~', 'p=none, sp=quarantine'): 2,
+    ('all~', 'p=none, sp=reject'): 2,
+    ('all~', 'p=none, aspf=r'): 2,
+    ('all~', 'p=none, aspf=s'): 2,
+    ('all~', 'p=none, sp=quarantine, aspf=r'): 2,
+    ('all~', 'p=none, sp=quarantine, aspf=s'): 2,
+    ('all~', 'p=none, sp=reject, aspf=r'): 2,
+    ('all~', 'p=none, sp=reject, aspf=s'): 2,
+    ('all~', 'p=none, sp=none, aspf=r'): 7,
+    ('all~', 'p=none, sp=none, aspf=s'): 7,
+    ('all~', 'p=none'): 0,
+    ('all~', 'p=quarantine'): 8,
+    ('all~', 'p=reject'): 8,
+    ('all~', 'p=quarantine, sp=quarantine'): 8,
+    ('all~', 'p=quarantine, sp=reject'): 8,
+    ('all~', 'p=reject, sp=quarantine'): 8,
+    ('all~', 'p=reject, sp=reject'): 8,
+    ('all~', 'p=quarantine, sp=none, aspf=r'): 8,
+    ('all~', 'p=quarantine, sp=none, aspf=s'): 8,
+    ('all~', 'p=quarantine, sp=quarantine, aspf=r'): 8,
+    ('all~', 'p=quarantine, sp=quarantine, aspf=s'): 8,
+    ('all~', 'p=quarantine, sp=reject, aspf=r'): 8,
+    ('all~', 'p=quarantine, sp=reject, aspf=s'): 8,
+    ('all~', 'p=reject, sp=none, aspf=r'): 8,
+    ('all~', 'p=reject, sp=none, aspf=s'): 8,
+    ('all~', 'p=reject, sp=quarantine, aspf=r'): 8,
+    ('all~', 'p=reject, sp=quarantine, aspf=s'): 8,
+    ('all~', 'p=reject, sp=reject, aspf=r'): 8,
+    ('all~', 'p=reject, sp=reject, aspf=s'): 8,
+    ('No All', 'p=none, aspf=r'): 0,
+    ('No All', 'p=none, sp=none, aspf=r'): 0,
+    ('No All', 'No DMARC'): 0,
+    ('No All', 'p=quarantine, sp=none, aspf=r'): 1,
+    ('No All', 'p=quarantine, sp=none, aspf=s'): 1,
+    ('No All', 'p=reject, sp=none, aspf=r'): 1,
+    ('No All', 'p=reject, sp=none, aspf=s'): 1,
+    ('No All', 'p=none'): 4,
+    ('No All', 'p=none, sp=none'): 4,
+    ('No All', 'p=none, aspf=s'): 4,
+    ('No All', 'p=none, sp=none, aspf=s'): 4,
+    ('No All', 'p=none, sp=quarantine'): 5,
+    ('No All', 'p=none, sp=reject'): 5,
+    ('No All', 'p=none, sp=quarantine, aspf=r'): 5,
+    ('No All', 'p=none, sp=quarantine, aspf=s'): 5,
+    ('No All', 'p=none, sp=reject, aspf=r'): 5,
+    ('No All', 'p=none, sp=reject, aspf=s'): 5,
+    ('No All', 'p=quarantine, sp=none'): 6,
+    ('No All', 'p=reject, sp=none'): 6,
+    ('No All', 'p=quarantine'): 8,
+    ('No All', 'p=reject'): 8,
+    ('No All', 'p=quarantine, sp=quarantine'): 8,
+    ('No All', 'p=quarantine, sp=reject'): 8,
+    ('No All', 'p=reject, sp=quarantine'): 8,
+    ('No All', 'p=reject, sp=reject'): 8,
+    ('No All', 'p=quarantine, sp=quarantine, aspf=r'): 8,
+    ('No All', 'p=quarantine, sp=quarantine, aspf=s'): 8,
+    ('No All', 'p=quarantine, sp=reject, aspf=r'): 8,
+    ('No All', 'p=quarantine, sp=reject, aspf=s'): 8,
+    ('No All', 'p=reject, sp=quarantine, aspf=r'): 8,
+    ('No All', 'p=reject, sp=quarantine, aspf=s'): 8,
+    ('No All', 'p=reject, sp=reject, aspf=r'): 8,
+    ('No All', 'p=reject, sp=reject, aspf=s'): 8,
+    ('No SPF', 'No DMARC'): 0,
+    ('No SPF', 'p=none, sp=none, aspf=r'): 2,
+    ('No SPF', 'p=none, sp=none, aspf=s'): 2,
+    ('No SPF', 'p=none'): 4,
+    ('No SPF', 'p=quarantine'): 8,
+    ('No SPF', 'p=reject'): 8,
+    ('No SPF', 'p=none, sp=none'): 8,
+    ('No SPF', 'p=none, sp=quarantine'): 8,
+    ('No SPF', 'p=none, sp=reject'): 8,
+    ('No SPF', 'p=none, aspf=r'): 8,
+    ('No SPF', 'p=none, aspf=s'): 8,
+    ('No SPF', 'p=quarantine, sp=none'): 8,
+    ('No SPF', 'p=quarantine, sp=quarantine'): 8,
+    ('No SPF', 'p=quarantine, sp=reject'): 8,
+    ('No SPF', 'p=reject, sp=none'): 8,
+    ('No SPF', 'p=reject, sp=quarantine'): 8,
+    ('No SPF', 'p=reject, sp=reject'): 8,
+    ('No SPF', 'p=none, sp=quarantine, aspf=r'): 8,
+    ('No SPF', 'p=none, sp=quarantine, aspf=s'): 8,
+    ('No SPF', 'p=none, sp=reject, aspf=r'): 8,
+    ('No SPF', 'p=none, sp=reject, aspf=s'): 8,
+    ('No SPF', 'p=quarantine, sp=none, aspf=r'): 8,
+    ('No SPF', 'p=quarantine, sp=none, aspf=s'): 8,
+    ('No SPF', 'p=quarantine, sp=quarantine, aspf=r'): 8,
+    ('No SPF', 'p=quarantine, sp=quarantine, aspf=s'): 8,
+    ('No SPF', 'p=quarantine, sp=reject, aspf=r'): 8,
+    ('No SPF', 'p=quarantine, sp=reject, aspf=s'): 8,
+    ('No SPF', 'p=reject, sp=none, aspf=r'): 8,
+    ('No SPF', 'p=reject, sp=none, aspf=s'): 8,
+    ('No SPF', 'p=reject, sp=quarantine, aspf=r'): 8,
+    ('No SPF', 'p=reject, sp=quarantine, aspf=s'): 8,
+    ('No SPF', 'p=reject, sp=reject, aspf=r'): 8,
+    ('No SPF', 'p=reject, sp=reject, aspf=s'): 8,
+}
 
 
 class Spoofing:
@@ -35,90 +238,87 @@ class Spoofing:
         subdomain = bool(tldextract.extract(self.domain).subdomain)
         return "subdomain" if subdomain else "domain"
 
+    def _normalize_spf_config(self):
+        """Convert SPF parameters to lookup table format."""
+        if self.spf_record is None:
+            return "No SPF"
+        
+        if self.spf_all is None:
+            return "No All"
+        
+        # Handle multiple all mechanisms  
+        if self.spf_all == "2many":
+            return "Multiple All"  # Custom handling for multiple alls
+            
+        # SPF all mechanisms are already in correct format for table lookup
+        # Table expects: "-all", "~all", "+all", "?all", "all-", "all+", "all?", "all~"
+        return self.spf_all
+
+    def _normalize_dmarc_config(self):
+        """Convert DMARC parameters to lookup table format."""
+        if not self.dmarc_record:
+            return "No DMARC"
+            
+        # Build DMARC configuration string to match table format
+        parts = []
+        
+        if self.p:
+            parts.append(f"p={self.p}")
+        
+        if self.sp:
+            parts.append(f"sp={self.sp}")
+            
+        if self.aspf:
+            parts.append(f"aspf={self.aspf}")
+        
+        if not parts:
+            return "No DMARC"
+            
+        return ", ".join(parts)
+
+    @lru_cache(maxsize=512)
+    def _lookup_spoofability(self, spf_config, dmarc_config):
+        """Cached lookup for spoofability code."""
+        return SPOOFABILITY_LOOKUP.get((spf_config, dmarc_config), 8)
+
     def is_spoofable(self):
-        """Determines the spoofability based on DMARC and SPF data."""
+        """Efficient spoofability lookup using empirical table."""
+        # Handle percentage < 100%
         try:
             if self.pct and int(self.pct) != 100:
-                return 3
-            if self.spf_record is None:
-                return 0 if self.p is None else 4 if self.p == "none" else 8
-            if self.spf_dns_queries > 10 and self.p is None:
-                return 0
-            if self.spf_all == "2many":
-                return 3 if self.p == "none" else 8
-            if self.spf_all and self.p is None:
-                return 0
-            if self.spf_all == "-all":
-                if self.p == "none":
-                    if self.sp == "none":
-                        if self.aspf in ["r", "s"]:
-                            return 1
-                        return 7
-                    if self.sp in ["quarantine", "reject"]:
-                        if self.aspf == "r":
-                            return 2
-                        if self.aspf == "s":
-                            return 8
-                        return 5
-                    return 4
-                if self.p in ["quarantine", "reject"]:
-                    if self.sp == "none":
-                        if self.aspf in [
-                            "r",
-                            "s",
-                        ]:
-                            return 8
-                        return 1
-                    return 8
-            if self.spf_all == "?all":
-                if not self.dmarc_record:
-                    return 0
-                if self.p == "none" and self.aspf == "r":
-                    return 0
-                if self.p == "none" and self.sp == "none" and self.aspf in ["r", "s"]:
-                    return 4
-                if self.p == "none" and self.sp in ["quarantine", "reject"]:
-                    return 5
-                return 8
-            if self.spf_all == "+all":
-                return 4
-            if self.spf_all == "~all":
-                if self.p == "none":
-                    if self.sp == "none":
-                        return 7 if self.aspf in ["r", "s"] else 0
-                    if self.sp in ["quarantine", "reject"]:
-                        return 2
-                    return 2 if self.aspf in ["r", "s"] else 0
-
-                if self.p in ["quarantine", "reject"]:
-                    if self.sp == "none":
-                        return 8 if self.aspf in ["r", "s"] else 1
-                    return 8
-            if not self.spf_all:
-                if not self.dmarc_record:
-                    return 0
-                if (
-                    self.p in ["quarantine", "reject"]
-                    and self.sp == "none"
-                    and self.aspf in ["r", "s"]
-                ):
-                    return 1
-                if self.p == "none" and self.sp in ["none", "quarantine", "reject"]:
-                    return 4 if self.aspf == "s" else 5
-                return 8
-            if not self.spf_record:
-                if not self.dmarc_record:
-                    return 0
-                if self.p == "none" and self.sp == "none" and self.aspf in ["r", "s"]:
-                    return 2
-                return 4 if self.p == "none" else 8
-            return 8
-        except Exception:
-            spf_valid = validate_record_syntax(self.spf_record, "SPF")
-            dmarc_valid = validate_record_syntax(self.dmarc_record, "DMARC")
-            if (not spf_valid and not dmarc_valid) or (spf_valid and not dmarc_valid):
-                return 0
-            return 3 if not spf_valid and dmarc_valid and self.p == "none" else 8
+                return 3  # Partial enforcement = maybe spoofable
+        except (ValueError, TypeError):
+            pass
+            
+        # Handle too many DNS queries
+        if self.spf_dns_queries > 10 and not self.dmarc_record:
+            return 0  # SPF failure + no DMARC = spoofable
+            
+        # Get normalized configurations
+        spf_config = self._normalize_spf_config()
+        dmarc_config = self._normalize_dmarc_config()
+        
+        # Handle special cases not in table
+        if spf_config == "Multiple All":
+            return 3 if self.p == "none" else 8
+            
+        # Lookup in empirical table (O(1) operation)
+        spoofability_code = self._lookup_spoofability(spf_config, dmarc_config)
+        
+        # Handle syntax validation fallback for unknown configurations
+        if spoofability_code == 8 and (spf_config, dmarc_config) not in SPOOFABILITY_LOOKUP:
+            try:
+                spf_valid = validate_record_syntax(self.spf_record, "SPF")
+                dmarc_valid = validate_record_syntax(self.dmarc_record, "DMARC")
+                
+                if (not spf_valid and not dmarc_valid) or (spf_valid and not dmarc_valid):
+                    return 0  # Invalid records = spoofable
+                if not spf_valid and dmarc_valid and self.p == "none":
+                    return 3  # Invalid SPF + permissive DMARC = maybe
+            except Exception:
+                pass
+                
+        return spoofability_code
 
     def evaluate_spoofing(self):
         """Evaluates and returns whether spoofing is possible and the type of spoofing."""
@@ -126,7 +326,7 @@ class Spoofing:
             0: f"Spoofing possible for {self.domain}.",
             1: f"Subdomain spoofing possible for {self.domain}.",
             2: f"Organizational domain spoofing possible for {self.domain}.",
-            3: f"Spoofing might be possible for {self.domain}.",
+            3: f"Spoofing might be possible for {self.domain} (DMARC enforcement: {self.pct or '100'}%).",
             4: f"Spoofing might be possible (Mailbox dependent) for {self.domain}.",
             5: f"Organizational domain spoofing might be possible (Mailbox dependent) for {self.domain}.",
             6: f"Subdomain spoofing might be possible (Mailbox dependent) for {self.domain}.",
@@ -138,12 +338,13 @@ class Spoofing:
             self.spoofable, f"Unknown spoofing type for {self.domain}."
         )
 
-        if self.spoofable in {0, 1, 3, 7}:
-            spoofing_possible = True
+        # Refined mapping for better symbol consistency
+        if self.spoofable in {0, 1, 7}:
+            spoofing_possible = True  # Definite spoofing
         elif self.spoofable == 8:
-            spoofing_possible = False
-        else:
-            spoofing_possible = None  # "maybe"
+            spoofing_possible = False  # Not spoofable
+        else:  # Codes 2, 3, 4, 5, 6
+            spoofing_possible = None  # "maybe" - more accurate for uncertainty
 
         return spoofing_possible, spoofing_type
 

@@ -4,3 +4,4 @@ tldextract
 pandas
 openpyxl
 requests
+beautifulsoup4 
