@@ -15,10 +15,10 @@ Spoofy
 
 Well, Spoofy is different and here is why:
 
-> 1. Authoritative lookups on all lookups with known fallback (Cloudflare DNS)
-> 2. Accurate bulk lookups
-> 3. Custom, manually tested spoof logic (No guessing or speculating, real world test results)
-> 4. SPF DNS query counter
+> 1. Custom, manually tested spoof logic (No guessing or speculating, real world test results)
+> 2. Standards-based record discovery: RFC 7208 SPF evaluation and the RFC 9989 DMARC tree walk, including `sp`/`np` for subdomains
+> 3. Accurate bulk lookups over a shared, caching resolver with failover (1.1.1.1, 8.8.8.8, 9.9.9.9)
+> 4. SPF DNS query and void lookup counter, plus detection of unregistered SPF include domains
 > 5. Optional DKIM selector enumeration via API
 
 ## PASSING TESTS
@@ -31,16 +31,17 @@ Well, Spoofy is different and here is why:
 
 ```console
 Usage:
-    ./spoofy.py -d [DOMAIN] -o [stdout or xls] -t [NUMBER_OF_THREADS] [--dkim]
+    ./spoofy.py -d [DOMAIN] -o [stdout, xls or json] -t [NUMBER_OF_THREADS] [--dkim] [--dns-server IP]
     OR
-    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout or xls] -t [NUMBER_OF_THREADS] [--dkim]
+    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout, xls or json] -t [NUMBER_OF_THREADS] [--dkim] [--dns-server IP]
 
 Options:
-    -d      : Process a single domain.
-    -iL     : Provide a file containing a list of domains to process.
-    -o      : Specify the output format: stdout (default), xls, or json.
-    -t      : Set the number of threads to use (default: 4).
-    --dkim  : Enable DKIM selector enumeration via API (optional).
+    -d            : Process a single domain.
+    -iL           : Provide a file containing a list of domains to process (blank lines and # comments are skipped).
+    -o            : Specify the output format: stdout (default), xls, or json.
+    -t            : Set the number of threads to use (default: 4).
+    --dkim        : Enable DKIM selector enumeration via API (optional).
+    --dns-server  : Query this resolver instead of 1.1.1.1, 8.8.8.8 and 9.9.9.9.
 
 Examples:
     ./spoofy.py -d example.com -t 10
@@ -56,6 +57,27 @@ Install Dependencies:
 
 (The spoofability table lists every combination of SPF and DMARC configurations that impact deliverability to the inbox, except for DKIM modifiers.)
 [Download Here](/files/Master_Table.xlsx)
+
+| Code | Result | `SPOOFING_POSSIBLE` |
+| ---- | ------ | ------------------- |
+| 0 | Spoofing possible | `true` |
+| 1 | Subdomain spoofing possible | `true` |
+| 2 | Organizational domain spoofing possible | `true` |
+| 3 | Spoofing might be possible (`p=quarantine` with `pct` < 100) | `null` |
+| 4 | Spoofing might be possible (mailbox dependent) | `null` |
+| 5 | Organizational domain spoofing might be possible (mailbox dependent) | `null` |
+| 6 | Subdomain spoofing might be possible (mailbox dependent) | `null` |
+| 7 | Subdomain spoofing possible, organizational domain spoofing might be possible | `true` |
+| 8 | Spoofing is not possible | `false` |
+| 9 | Unable to determine (a DNS lookup failed) | `null` |
+
+The verdict is the tested code for the domain's SPF `all` mechanism and the DMARC `p`, `sp` and `aspf` tags as the record writes them. `modules/master_table.py` holds the spreadsheet as data (`python3 -m modules.master_table` rewrites it after the spreadsheet changes), and `test.py` checks that every row is reproduced. Inputs the table does not cover are handled as follows:
+
+- **An enforcing `p` with `aspf` but no `sp`** (24 untested combinations): `sp` defaults to `p`, so the tested row with `sp` written out is used.
+- **A DMARC record inherited from a parent domain** (a subdomain without its own `_dmarc` record): the subdomain outcome tested for the parent's SPF and DMARC records, with `np` in place of `sp` when the subdomain does not exist.
+- **`pct` below 100 with `p=quarantine`**: code 3, since the unsampled mail gets `p=none`. With `p=reject` the unsampled mail is still quarantined, so `pct` does not change the verdict.
+- **`t=y`** (RFC 9989 testing mode): the policy drops one level (`reject` to `quarantine`, `quarantine` to `none`) before the lookup.
+- **A failed DNS lookup**: code 9 instead of treating the record as missing.
 
 ## METHODOLOGY
 

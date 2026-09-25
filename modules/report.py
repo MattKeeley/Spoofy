@@ -1,9 +1,10 @@
 # modules/report.py
 
-import os
-import pandas as pd
 import json
-from colorama import init, Fore, Style
+import os
+
+import pandas as pd
+from colorama import Fore, Style, init
 
 # Initialize colorama
 init()
@@ -23,23 +24,27 @@ def output_message(symbol, message, level="info"):
     print(color + f"{symbol} {message}" + Style.RESET_ALL)
 
 
+def _flatten(result):
+    """Excel cells hold scalars only: join list values."""
+    return {
+        key: "; ".join(map(str, value)) if isinstance(value, list) else value
+        for key, value in result.items()
+    }
+
+
 def write_to_excel(data, file_name="output.xlsx"):
     """Writes a DataFrame of data to an Excel file, appending if the file exists."""
+    new_df = pd.DataFrame([_flatten(result) for result in data])
     if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
         existing_df = pd.read_excel(file_name)
-        new_df = pd.DataFrame(data)
         combined_df = pd.concat([existing_df, new_df])
         combined_df.to_excel(file_name, index=False)
     else:
-        pd.DataFrame(data).to_excel(file_name, index=False)
+        new_df.to_excel(file_name, index=False)
+
 
 def output_json(results):
-    output = []
-    for result in results:
-        output.append(result)
-    print(json.dumps(output))
-
-
+    print(json.dumps(results, indent=2, default=str))
 
 
 def printer(**kwargs):
@@ -64,8 +69,20 @@ def printer(**kwargs):
     authority = kwargs.get("BIMI_AUTHORITY")
     spoofable = kwargs.get("SPOOFING_POSSIBLE")
     spoofing_type = kwargs.get("SPOOFING_TYPE")
+    spf_errors = kwargs.get("SPF_ERRORS") or []
+    dangling = kwargs.get("SPF_DANGLING_INCLUDES") or []
+    record_domain = kwargs.get("DMARC_RECORD_DOMAIN")
+    np = kwargs.get("DMARC_NP")
+    effective = kwargs.get("DMARC_EFFECTIVE_POLICY")
+    warnings = kwargs.get("WARNINGS") or []
+    error = kwargs.get("ERROR")
 
     output_message("[*]", f"Domain: {domain}", "indifferent")
+    if error:
+        output_message("[!]", f"Error: {error}", "error")
+        output_message("[?]", spoofing_type, "warning")
+        print()
+        return
     output_message("[*]", f"Is subdomain: {subdomain}", "indifferent")
     output_message("[*]", f"DNS Server: {dns_server}", "indifferent")
 
@@ -73,10 +90,6 @@ def printer(**kwargs):
         output_message("[*]", f"SPF record: {spf_record}", "info")
         if spf_all is None:
             output_message("[*]", "SPF does not contain an `All` item.", "info")
-        elif spf_all == "2many":
-            output_message(
-                "[?]", "SPF record contains multiple `All` items.", "warning"
-            )
         else:
             output_message("[*]", f"SPF all record: {spf_all}", "info")
         output_message(
@@ -86,11 +99,25 @@ def printer(**kwargs):
             else f"Too many SPF DNS query lookups {spf_dns_query_count}.",
             "info",
         )
+        for spf_error in spf_errors:
+            output_message("[?]", f"SPF permerror: {spf_error}", "warning")
+        for target in dangling:
+            output_message(
+                "[+]",
+                f"SPF includes {target}, which appears unregistered: registering it lets you pass SPF for {domain}.",
+                "good",
+            )
     else:
         output_message("[?]", "No SPF record found.", "warning")
 
     if dmarc_record:
         output_message("[*]", f"DMARC record: {dmarc_record}", "info")
+        if record_domain and record_domain != domain:
+            output_message(
+                "[*]",
+                f"DMARC record inherited from {record_domain}; effective policy for {domain}: {effective}",
+                "info",
+            )
         output_message(
             "[*]", f"Found DMARC policy: {p}" if p else "No DMARC policy found.", "info"
         )
@@ -109,6 +136,8 @@ def printer(**kwargs):
             else "No DMARC subdomain policy found.",
             "info",
         )
+        if np:
+            output_message("[*]", f"Found DMARC non-existent subdomain policy: {np}", "info")
         output_message(
             "[*]",
             f"Forensics reports will be sent: {fo}"
@@ -137,9 +166,13 @@ def printer(**kwargs):
         output_message("[*]", f"BIMI location: {location}", "info")
         output_message("[*]", f"BIMI authority: {authority}", "info")
 
+    for warning in warnings:
+        output_message("[?]", warning, "warning")
+
     if spoofing_type:
-        level = "good" if spoofable else "bad"
-        symbol = "[+]" if level == "good" else "[-]"
+        level, symbol = {True: ("good", "[+]"), False: ("bad", "[-]")}.get(
+            spoofable, ("warning", "[?]")
+        )
         output_message(symbol, spoofing_type, level)
 
     print()  # Padding

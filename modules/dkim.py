@@ -23,14 +23,7 @@ class DKIM:
             if response.status_code == 200:
                 data = response.json()
                 return self.format_dkim_records(data)
-            elif response.status_code == 400:
-                return None
-            elif response.status_code == 429:
-                return None
-            elif response.status_code == 500:
-                return None
-            else:
-                return None
+            return None  # 400 / 429 / 500 / anything else
         except requests.exceptions.RequestException:
             return None
         except (KeyError, ValueError, TypeError):
