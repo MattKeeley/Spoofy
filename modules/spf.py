@@ -54,13 +54,11 @@ class SPF:
                          whoever registers it can make mail pass SPF for this domain
     """
 
-    def __init__(self, domain, dns_server=None, resolver=None):
-        self.domain = domain.lower().rstrip(".")
-        self.resolver = resolver or get_resolver(dns_server)
-        self.dns_server = dns_server or ", ".join(self.resolver.nameservers)
+    def __init__(self, domain, resolver=None):
+        self.domain = domain
+        self.resolver = resolver or get_resolver()
         self.all_mechanism = None
         self.spf_dns_query_count = 0
-        self.too_many_dns_queries = False
         self.void_lookups = 0
         self.errors = []
         self.warnings = []
@@ -69,9 +67,8 @@ class SPF:
         self.spf_record = self.get_spf_record()
 
         if self.spf_record:
-            self.all_mechanism = self._walk(self.domain, self.spf_record, 0, {self.domain})
-            self.too_many_dns_queries = self.spf_dns_query_count > LOOKUP_LIMIT
-            if self.too_many_dns_queries:
+            self.all_mechanism = self._walk(domain, self.spf_record, 0, {domain})
+            if self.spf_dns_query_count > LOOKUP_LIMIT:
                 self.errors.append(
                     f"{self.spf_dns_query_count} DNS-querying terms (limit {LOOKUP_LIMIT})"
                 )
@@ -81,19 +78,19 @@ class SPF:
                 )
 
     @property
-    def permerror(self):
-        return bool(self.errors)
+    def too_many_dns_queries(self):
+        return self.spf_dns_query_count > LOOKUP_LIMIT
 
     @property
     def state(self):
-        """Key used by the spoofability model: the all qualifier, 'noall' or 'nospf'."""
+        """Master table key: the all qualifier, 'noall' or 'nospf'."""
         if not self.spf_record:
             return "nospf"
         return self.all_mechanism or "noall"
 
-    def get_spf_record(self, domain=None):
-        """Fetches the SPF record for the specified domain."""
-        result = self.resolver.txt(domain or self.domain)
+    def get_spf_record(self):
+        """Fetches the SPF record for the domain."""
+        result = self.resolver.txt(self.domain)
         if result.status == "error":
             self.lookup_error = True
             return None
@@ -104,36 +101,29 @@ class SPF:
 
     def _walk(self, domain, record, depth, stack):
         """Counts lookups below `record` and returns its effective 'all' mechanism."""
-        terms = parse_terms(record)
-        # A syntax error anywhere, even after 'all', is a permerror (RFC 7208 4.6).
-        for term in terms:
-            if not term.is_modifier and term.name not in KNOWN_MECHANISMS:
-                self.errors.append(f"unknown mechanism '{term.name}' in SPF for {domain}")
-            elif term.name in ("ip4", "ip6") and not term.value:
-                self.errors.append(f"'{term.name}' without an address in SPF for {domain}")
-
         all_mechanism = None
         redirect = None
-        for term in terms:
+        for term in parse_terms(record):
             if term.is_modifier:
                 if term.name == "redirect":
                     redirect = term.value
-                continue
-            if term.name not in KNOWN_MECHANISMS:
-                continue
-            if term.name == "all":
-                # Evaluation stops at the first 'all': later mechanisms are never reached
-                # (and cost no lookups), and redirect= is ignored.
+            # A syntax error anywhere, even after 'all', is a permerror (RFC 7208 4.6).
+            elif term.name not in KNOWN_MECHANISMS:
+                self.errors.append(f"unknown mechanism '{term.name}' in SPF for {domain}")
+            elif term.name in ("ip4", "ip6") and not term.value:
+                self.errors.append(f"'{term.name}' without an address in SPF for {domain}")
+            elif all_mechanism:
+                continue  # evaluation stopped at 'all': later terms cost no lookups
+            elif term.name == "all":
                 all_mechanism = f"{term.qualifier}all"
-                break
-            if term.name == "ptr":
-                self._warn(f"deprecated 'ptr' mechanism in SPF for {domain}")
-            if term.name in DNS_MECHANISMS:
+            elif term.name in DNS_MECHANISMS:
                 self.spf_dns_query_count += 1
-            if term.name == "include":
-                self._follow(term.value, "include", depth, stack)
+                if term.name == "ptr":
+                    self._warn(f"deprecated 'ptr' mechanism in SPF for {domain}")
+                if term.name == "include":
+                    self._follow(term.value, "include", depth, stack)
 
-        if redirect and all_mechanism is None:
+        if redirect and all_mechanism is None:  # redirect= is ignored when 'all' is present
             self.spf_dns_query_count += 1
             all_mechanism = self._follow(redirect, "redirect", depth, stack)
         return all_mechanism
@@ -180,11 +170,3 @@ class SPF:
         registered = registered_domain(target)
         if registered and self.resolver.query(registered, "NS").status == "nxdomain":
             self.dangling_includes.append(registered)
-
-    def __str__(self):
-        return (
-            f"SPF Record: {self.spf_record}\n"
-            f"All Mechanism: {self.all_mechanism}\n"
-            f"DNS Query Count: {self.spf_dns_query_count}\n"
-            f"Too Many DNS Queries: {self.too_many_dns_queries}"
-        )

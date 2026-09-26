@@ -27,20 +27,6 @@ def parse_tags(record):
     return tags
 
 
-def applicable_policies(p, sp=None, np=None, inherited=False, domain_exists=True):
-    """(policy for the domain itself, policy for its existing subdomains), RFC 9989 4.7.
-
-    A record inherited from a parent applies its 'sp' to the domain (or 'np' when the
-    domain does not exist); 'sp' falls back to 'p'.
-    """
-    if p is None:
-        return None, None
-    sub_policy = sp or p
-    if not inherited:
-        return p, sub_policy
-    return (np if np and not domain_exists else sub_policy), sub_policy
-
-
 def tree_walk_targets(domain):
     """Names whose _dmarc record is consulted for `domain`, in order (RFC 9989 4.10 DNS Tree Walk)."""
     labels = domain.split(".")
@@ -60,36 +46,26 @@ def one_label_below(domain, ancestor):
 class DMARC:
     """Discovers the DMARC policy that applies to mail From: `domain` (RFC 9989 4.10).
 
-    The Author Domain's own record wins, then the Organizational Domain's, then the
-    PSD's. For an inherited record 'sp' (or 'np' for a domain that does not exist) is
-    the policy for this domain rather than 'p'.
+    The Author Domain's own record wins, then the Organizational Domain's, then the PSD's.
+    Tag attributes hold the values as written (None when absent or invalid), since the
+    master table is keyed on what the record actually says.
     """
 
-    def __init__(self, domain, dns_server=None, resolver=None):
-        self.domain = domain.lower().rstrip(".")
-        self.resolver = resolver or get_resolver(dns_server)
-        self.dns_server = dns_server or ", ".join(self.resolver.nameservers)
+    policy = sp = np = pct = aspf = t = rua = ruf = None
+
+    def __init__(self, domain, resolver=None):
+        self.domain = domain
+        self.resolver = resolver or get_resolver()
         self.record_domain = None
         self.domain_exists = True
         self.lookup_error = False
         self.warnings = []
-        self.tags = {}
-        self.policy = None
-        self.sp = None
-        self.np = None
-        self.pct = None
-        self.aspf = None
-        self.adkim = None
-        self.t = None
-        self.fo = None
-        self.rua = None
-        self.ruf = None
         self.dmarc_record = self.get_dmarc_record()
 
         if self.dmarc_record:
-            self._load_tags(self.dmarc_record)
+            self._load_tags(parse_tags(self.dmarc_record))
             if self.inherited:
-                self.domain_exists = self.resolver.query(self.domain, "A").status != "nxdomain"
+                self.domain_exists = self.resolver.query(domain, "A").status != "nxdomain"
 
     @property
     def inherited(self):
@@ -105,10 +81,12 @@ class DMARC:
                 self.lookup_error = True
                 self.warnings.append(f"_dmarc.{target} lookup failed ({result.error})")
                 return None
-            records = [r.strip() for r in result.records if is_dmarc_record(r)]
-            for r in result.records:
-                if "dmarc1" in r.lower() and not is_dmarc_record(r):
-                    self.warnings.append(f"_dmarc.{target} has a malformed record receivers ignore: {r!r}")
+            records = []
+            for record in result.records:
+                if is_dmarc_record(record):
+                    records.append(record.strip())
+                elif "dmarc1" in record.lower():
+                    self.warnings.append(f"_dmarc.{target} has a malformed record receivers ignore: {record!r}")
             if len(records) > 1:
                 self.warnings.append(
                     f"{len(records)} DMARC records at _dmarc.{target}; receivers ignore all of them"
@@ -137,54 +115,24 @@ class DMARC:
                 return found[name]
         return None
 
-    def _load_tags(self, record):
-        tags = self.tags = parse_tags(record)
-        self.rua = tags.get("rua")
-        self.ruf = tags.get("ruf")
-        self.fo = tags.get("fo")
+    def _load_tags(self, tags):
+        self.rua, self.ruf = tags.get("rua"), tags.get("ruf")
         self.t = tags.get("t", "").lower() or None
 
-        policy = tags.get("p", "").lower()
-        sp = tags.get("sp", "").lower() or None
-        np = tags.get("np", "").lower() or None
-        if policy not in POLICIES or sp not in POLICIES + (None,) or np not in POLICIES + (None,):
-            # RFC 9989 4.7 / RFC 7489 6.6.3: fall back to p=none if reports are
-            # requested, otherwise the record is ignored entirely.
-            if self.rua:
-                self.warnings.append("invalid p/sp/np tag; receivers treat the record as p=none")
-                policy, sp, np = "none", None, None
-            else:
-                self.warnings.append("invalid p/sp/np tag and no rua; receivers ignore the record")
-                policy, sp, np = None, None, None
+        policy, sp, np = (tags.get(tag, "").lower() or None for tag in ("p", "sp", "np"))
+        if policy not in POLICIES or {sp, np} - {None, *POLICIES}:
+            # RFC 9989 4.7: act as p=none if reports are requested, else ignore the record.
+            policy, sp, np = ("none" if self.rua else None), None, None
+            outcome = "treat the record as p=none" if self.rua else "ignore the record"
+            self.warnings.append(f"invalid p/sp/np tag; receivers {outcome}")
         self.policy, self.sp, self.np = policy, sp, np
 
         pct = tags.get("pct")
-        if pct is not None:
-            if pct.isdigit() and 0 <= int(pct) <= 100:
-                self.pct = pct
-            else:
-                self.warnings.append(f"invalid pct={pct!r} ignored")
-        for tag in ("aspf", "adkim"):
-            value = tags.get(tag, "").lower() or None
-            if value not in (None, "r", "s"):
-                self.warnings.append(f"invalid {tag}={value!r}; default 'r' applies")
-                value = None
-            setattr(self, tag, value)
-
-    def applicable_policies(self):
-        return applicable_policies(
-            self.policy, self.sp, self.np, self.inherited, self.domain_exists
-        )
-
-    def __str__(self):
-        return (
-            f"DMARC Record: {self.dmarc_record}\n"
-            f"Found at: {self.record_domain}\n"
-            f"Policy: {self.policy}\n"
-            f"Pct: {self.pct}\n"
-            f"ASPF: {self.aspf}\n"
-            f"Subdomain Policy: {self.sp}\n"
-            f"Non-existent Subdomain Policy: {self.np}\n"
-            f"Aggregate Report URI: {self.rua}\n"
-            f"Forensic Report URI: {self.ruf}"
-        )
+        if pct is not None and not (pct.isdigit() and int(pct) <= 100):
+            self.warnings.append(f"invalid pct={pct!r} ignored")
+            pct = None
+        aspf = tags.get("aspf", "").lower() or None
+        if aspf not in (None, "r", "s"):
+            self.warnings.append(f"invalid aspf={aspf!r}; default 'r' applies")
+            aspf = None
+        self.pct, self.aspf = pct, aspf

@@ -9,55 +9,32 @@ from modules import report
 from modules.bimi import BIMI
 from modules.dkim import DKIM
 from modules.dmarc import DMARC
-from modules.domains import normalize_domain
+from modules.domains import is_subdomain, normalize_domain
 from modules.resolver import get_resolver
 from modules.spf import SPF
-from modules.spoofing import Spoofing
+from modules.spoofing import MESSAGES, POSSIBLE, spoofability
 
 print_lock = threading.Lock()
 
 
-def process_domain(domain, enable_dkim=False, dns_server=None):
+def process_domain(domain, enable_dkim=False, dns_server=None, resolver=None):
     """Process a domain to gather SPF, DMARC, and BIMI records. Optionally enumerate DKIM selectors if enabled."""
-    resolver = get_resolver(dns_server)
-    spf = SPF(domain, resolver=resolver)
-    dmarc = DMARC(domain, resolver=resolver)
-    bimi = BIMI(domain, resolver=resolver)
-
-    dkim_record = None
-    if enable_dkim:
-        dkim_record = DKIM(domain).dkim_record
+    resolver = resolver or get_resolver(dns_server)
+    spf = SPF(domain, resolver)
+    dmarc = DMARC(domain, resolver)
+    bimi = BIMI(domain, resolver)
+    dkim_record = DKIM(domain).dkim_record if enable_dkim else None
 
     warnings = spf.warnings + dmarc.warnings
     if resolver.txt(domain).status == "nxdomain":
         warnings.insert(0, f"{domain} does not exist (NXDOMAIN); most receivers reject mail from it")
 
-    # An inherited record was tested against the parent's SPF, so judge with that one.
-    verdict_spf = SPF(dmarc.record_domain, resolver=resolver) if dmarc.inherited else spf
-
-    policy, sub_policy = dmarc.applicable_policies()
-    spoofing = Spoofing(
-        domain,
-        dmarc.dmarc_record,
-        dmarc.policy,
-        dmarc.aspf,
-        spf.spf_record,
-        spf.all_mechanism,
-        spf.spf_dns_query_count,
-        dmarc.sp,
-        dmarc.pct,
-        np=dmarc.np,
-        t=dmarc.t,
-        inherited=dmarc.inherited,
-        domain_exists=dmarc.domain_exists,
-        org_spf_state=verdict_spf.state,
-        lookup_error=dmarc.lookup_error,
-        spf_lookup_error=verdict_spf.lookup_error,
-    )
+    # An inherited DMARC record was tested together with the parent's SPF record.
+    code = spoofability(SPF(dmarc.record_domain, resolver) if dmarc.inherited else spf, dmarc)
 
     return {
         "DOMAIN": domain,
-        "DOMAIN_TYPE": spoofing.domain_type,
+        "DOMAIN_TYPE": "subdomain" if is_subdomain(domain) else "domain",
         "DNS_SERVER": ", ".join(resolver.nameservers),
         "SPF": spf.spf_record,
         "SPF_MULTIPLE_ALLS": spf.all_mechanism,
@@ -74,8 +51,6 @@ def process_domain(domain, enable_dkim=False, dns_server=None):
         "DMARC_SP": dmarc.sp,
         "DMARC_NP": dmarc.np,
         "DMARC_T": dmarc.t,
-        "DMARC_EFFECTIVE_POLICY": policy,
-        "DMARC_EFFECTIVE_SUBDOMAIN_POLICY": sub_policy,
         "DMARC_FORENSIC_REPORT": dmarc.ruf,
         "DMARC_AGGREGATE_REPORT": dmarc.rua,
         "DKIM": dkim_record,
@@ -84,9 +59,9 @@ def process_domain(domain, enable_dkim=False, dns_server=None):
         "BIMI_LOCATION": bimi.location,
         "BIMI_AUTHORITY": bimi.authority,
         "WARNINGS": warnings,
-        "SPOOFING_CODE": spoofing.spoofable,
-        "SPOOFING_POSSIBLE": spoofing.spoofing_possible,
-        "SPOOFING_TYPE": spoofing.spoofing_type,
+        "SPOOFING_CODE": code,
+        "SPOOFING_POSSIBLE": POSSIBLE.get(code),
+        "SPOOFING_TYPE": MESSAGES[code].format(domain),
         "ERROR": None,
     }
 

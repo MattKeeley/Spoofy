@@ -28,10 +28,6 @@ class DNSResult:
     error: str = None
 
     @property
-    def ok(self):
-        return self.status == "ok"
-
-    @property
     def void(self):
         """RFC 7208 4.6.4 'void lookup': NXDOMAIN or an empty answer."""
         return self.status in ("nxdomain", "nodata")
@@ -77,10 +73,8 @@ class Resolver:
             answer = self._resolver.resolve(name, rdtype, raise_on_no_answer=False)
         except dns.resolver.NXDOMAIN:
             return DNSResult("nxdomain")
-        except (dns.resolver.NoNameservers, dns.exception.Timeout) as e:
+        except dns.exception.DNSException as e:  # timeout, SERVFAIL/REFUSED, bad name, ...
             return DNSResult("error", error=type(e).__name__)
-        except dns.exception.DNSException as e:
-            return DNSResult("error", error=f"{type(e).__name__}: {e}")
         if answer.rrset is None:
             return DNSResult("nodata")
         if rdtype == "TXT":

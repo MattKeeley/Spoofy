@@ -9,7 +9,7 @@ test.py fails if this drifts from the spreadsheet. After updating the spreadshee
 `python3 -m modules.master_table` to rewrite this file from it.
 """
 
-SPF_STATES = {
+SPREADSHEET_SPF = {
     "-all": "-all",
     "all-": "-all",
     "all~": "~all",
@@ -28,10 +28,10 @@ def load_spreadsheet(path):
     table = {}
     for spf, dmarc, code in (row[:3] for row in rows if row[0]):
         if dmarc == "No DMARC":
-            key = (SPF_STATES[spf], None)
+            key = (SPREADSHEET_SPF[spf], None)
         else:
             tags = dict(tag.strip().split("=") for tag in dmarc.split(","))
-            key = (SPF_STATES[spf], (tags["p"], tags.get("sp"), tags.get("aspf")))
+            key = (SPREADSHEET_SPF[spf], (tags["p"], tags.get("sp"), tags.get("aspf")))
         if key in table:
             raise ValueError(f"duplicate row in {path}: {spf} | {dmarc}")
         table[key] = int(code)

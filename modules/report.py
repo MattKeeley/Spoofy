@@ -47,61 +47,48 @@ def output_json(results):
     print(json.dumps(results, indent=2, default=str))
 
 
-def printer(**kwargs):
-    """Utility function to print the results of DMARC, SPF, and BIMI checks in the original format."""
-    domain = kwargs.get("DOMAIN")
-    subdomain = kwargs.get("DOMAIN_TYPE") == "subdomain"
-    dns_server = kwargs.get("DNS_SERVER")
-    spf_record = kwargs.get("SPF")
-    spf_all = kwargs.get("SPF_MULTIPLE_ALLS")
-    spf_dns_query_count = kwargs.get("SPF_NUM_DNS_QUERIES")
-    dmarc_record = kwargs.get("DMARC")
-    p = kwargs.get("DMARC_POLICY")
-    pct = kwargs.get("DMARC_PCT")
-    aspf = kwargs.get("DMARC_ASPF")
-    sp = kwargs.get("DMARC_SP")
-    fo = kwargs.get("DMARC_FORENSIC_REPORT")
-    rua = kwargs.get("DMARC_AGGREGATE_REPORT")
-    dkim_record = kwargs.get("DKIM")
-    bimi_record = kwargs.get("BIMI_RECORD")
-    vbimi = kwargs.get("BIMI_VERSION")
-    location = kwargs.get("BIMI_LOCATION")
-    authority = kwargs.get("BIMI_AUTHORITY")
-    spoofable = kwargs.get("SPOOFING_POSSIBLE")
-    spoofing_type = kwargs.get("SPOOFING_TYPE")
-    spf_errors = kwargs.get("SPF_ERRORS") or []
-    dangling = kwargs.get("SPF_DANGLING_INCLUDES") or []
-    record_domain = kwargs.get("DMARC_RECORD_DOMAIN")
-    np = kwargs.get("DMARC_NP")
-    effective = kwargs.get("DMARC_EFFECTIVE_POLICY")
-    warnings = kwargs.get("WARNINGS") or []
-    error = kwargs.get("ERROR")
+# (result key, message when set, message when missing or None to skip, level)
+DMARC_LINES = (
+    ("DMARC_POLICY", "Found DMARC policy: {}", "No DMARC policy found.", "info"),
+    ("DMARC_PCT", "Found DMARC pct: {}", "No DMARC pct found.", "info"),
+    ("DMARC_ASPF", "Found DMARC aspf: {}", "No DMARC aspf found.", "info"),
+    ("DMARC_SP", "Found DMARC subdomain policy: {}", "No DMARC subdomain policy found.", "info"),
+    ("DMARC_NP", "Found DMARC non-existent subdomain policy: {}", None, "info"),
+    ("DMARC_FORENSIC_REPORT", "Forensics reports will be sent: {}",
+     "No DMARC forensics report location found.", "indifferent"),
+    ("DMARC_AGGREGATE_REPORT", "Aggregate reports will be sent to: {}",
+     "No DMARC aggregate report location found.", "indifferent"),
+)
+
+
+def printer(**result):
+    """Prints the SPF, DMARC, DKIM, and BIMI results for one domain."""
+    get = result.get
+    domain = get("DOMAIN")
 
     output_message("[*]", f"Domain: {domain}", "indifferent")
-    if error:
-        output_message("[!]", f"Error: {error}", "error")
-        output_message("[?]", spoofing_type, "warning")
+    if get("ERROR"):
+        output_message("[!]", f"Error: {get('ERROR')}", "error")
+        output_message("[?]", get("SPOOFING_TYPE"), "warning")
         print()
         return
-    output_message("[*]", f"Is subdomain: {subdomain}", "indifferent")
-    output_message("[*]", f"DNS Server: {dns_server}", "indifferent")
+    output_message("[*]", f"Is subdomain: {get('DOMAIN_TYPE') == 'subdomain'}", "indifferent")
+    output_message("[*]", f"DNS Server: {get('DNS_SERVER')}", "indifferent")
 
-    if spf_record:
-        output_message("[*]", f"SPF record: {spf_record}", "info")
-        if spf_all is None:
-            output_message("[*]", "SPF does not contain an `All` item.", "info")
-        else:
-            output_message("[*]", f"SPF all record: {spf_all}", "info")
+    if get("SPF"):
+        spf_all, count = get("SPF_MULTIPLE_ALLS"), get("SPF_NUM_DNS_QUERIES")
+        output_message("[*]", f"SPF record: {get('SPF')}", "info")
+        output_message(
+            "[*]", f"SPF all record: {spf_all}" if spf_all else "SPF does not contain an `All` item.", "info"
+        )
         output_message(
             "[*]",
-            f"SPF DNS query count: {spf_dns_query_count}"
-            if spf_dns_query_count <= 10
-            else f"Too many SPF DNS query lookups {spf_dns_query_count}.",
+            f"SPF DNS query count: {count}" if count <= 10 else f"Too many SPF DNS query lookups {count}.",
             "info",
         )
-        for spf_error in spf_errors:
-            output_message("[?]", f"SPF permerror: {spf_error}", "warning")
-        for target in dangling:
+        for error in get("SPF_ERRORS") or []:
+            output_message("[?]", f"SPF permerror: {error}", "warning")
+        for target in get("SPF_DANGLING_INCLUDES") or []:
             output_message(
                 "[+]",
                 f"SPF includes {target}, which appears unregistered: registering it lets you pass SPF for {domain}.",
@@ -110,69 +97,34 @@ def printer(**kwargs):
     else:
         output_message("[?]", "No SPF record found.", "warning")
 
-    if dmarc_record:
-        output_message("[*]", f"DMARC record: {dmarc_record}", "info")
-        if record_domain and record_domain != domain:
-            output_message(
-                "[*]",
-                f"DMARC record inherited from {record_domain}; effective policy for {domain}: {effective}",
-                "info",
-            )
-        output_message(
-            "[*]", f"Found DMARC policy: {p}" if p else "No DMARC policy found.", "info"
-        )
-        output_message(
-            "[*]", f"Found DMARC pct: {pct}" if pct else "No DMARC pct found.", "info"
-        )
-        output_message(
-            "[*]",
-            f"Found DMARC aspf: {aspf}" if aspf else "No DMARC aspf found.",
-            "info",
-        )
-        output_message(
-            "[*]",
-            f"Found DMARC subdomain policy: {sp}"
-            if sp
-            else "No DMARC subdomain policy found.",
-            "info",
-        )
-        if np:
-            output_message("[*]", f"Found DMARC non-existent subdomain policy: {np}", "info")
-        output_message(
-            "[*]",
-            f"Forensics reports will be sent: {fo}"
-            if fo
-            else "No DMARC forensics report location found.",
-            "indifferent",
-        )
-        output_message(
-            "[*]",
-            f"Aggregate reports will be sent to: {rua}"
-            if rua
-            else "No DMARC aggregate report location found.",
-            "indifferent",
-        )
+    if get("DMARC"):
+        output_message("[*]", f"DMARC record: {get('DMARC')}", "info")
+        if get("DMARC_RECORD_DOMAIN") not in (None, domain):
+            output_message("[*]", f"DMARC record inherited from {get('DMARC_RECORD_DOMAIN')}.", "info")
+        for key, found, missing, level in DMARC_LINES:
+            if get(key) or missing:
+                output_message("[*]", found.format(get(key)) if get(key) else missing, level)
     else:
         output_message("[?]", "No DMARC record found.", "warning")
 
-    if dkim_record:
-        output_message("[*]", f"DKIM selectors: \r\n{dkim_record}", "info")
+    if get("DKIM"):
+        output_message("[*]", f"DKIM selectors: \r\n{get('DKIM')}", "info")
     else:
         output_message("[?]", f"No known DKIM selectors enumerated on {domain}.", "warning")
 
-    if bimi_record:
-        output_message("[*]", f"BIMI record: {bimi_record}", "info")
-        output_message("[*]", f"BIMI version: {vbimi}", "info")
-        output_message("[*]", f"BIMI location: {location}", "info")
-        output_message("[*]", f"BIMI authority: {authority}", "info")
+    if get("BIMI_RECORD"):
+        output_message("[*]", f"BIMI record: {get('BIMI_RECORD')}", "info")
+        output_message("[*]", f"BIMI version: {get('BIMI_VERSION')}", "info")
+        output_message("[*]", f"BIMI location: {get('BIMI_LOCATION')}", "info")
+        output_message("[*]", f"BIMI authority: {get('BIMI_AUTHORITY')}", "info")
 
-    for warning in warnings:
+    for warning in get("WARNINGS") or []:
         output_message("[?]", warning, "warning")
 
-    if spoofing_type:
+    if get("SPOOFING_TYPE"):
         level, symbol = {True: ("good", "[+]"), False: ("bad", "[-]")}.get(
-            spoofable, ("warning", "[?]")
+            get("SPOOFING_POSSIBLE"), ("warning", "[?]")
         )
-        output_message(symbol, spoofing_type, level)
+        output_message(symbol, get("SPOOFING_TYPE"), level)
 
     print()  # Padding
