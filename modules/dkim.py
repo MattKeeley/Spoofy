@@ -1,7 +1,5 @@
 # modules/dkim.py
 
-import requests
-
 API_URL = "https://archive.prove.email/api/key"
 
 
@@ -14,6 +12,8 @@ class DKIM:
 
     def get_dkim_record(self):
         """Returns the DKIM records for the domain, or None if there are none or the API fails."""
+        import requests  # only --dkim needs it
+
         try:
             response = requests.get(
                 API_URL,

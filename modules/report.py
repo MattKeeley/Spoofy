@@ -3,7 +3,6 @@
 import json
 import os
 
-import pandas as pd
 from colorama import Fore, Style, init
 
 # Initialize colorama
@@ -34,6 +33,8 @@ def _flatten(result):
 
 def write_to_excel(data, file_name="output.xlsx"):
     """Writes a DataFrame of data to an Excel file, appending if the file exists."""
+    import pandas as pd  # slow to import, and only -o xls needs it
+
     new_df = pd.DataFrame([_flatten(result) for result in data])
     if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
         existing_df = pd.read_excel(file_name)
@@ -121,10 +122,9 @@ def printer(**result):
     for warning in get("WARNINGS") or []:
         output_message("[?]", warning, "warning")
 
-    if get("SPOOFING_TYPE"):
-        level, symbol = {True: ("good", "[+]"), False: ("bad", "[-]")}.get(
-            get("SPOOFING_POSSIBLE"), ("warning", "[?]")
-        )
-        output_message(symbol, get("SPOOFING_TYPE"), level)
+    level, symbol = {True: ("good", "[+]"), False: ("bad", "[-]")}.get(
+        get("SPOOFING_POSSIBLE"), ("warning", "[?]")
+    )
+    output_message(symbol, get("SPOOFING_TYPE"), level)
 
     print()  # Padding

@@ -9,6 +9,9 @@ test.py fails if this drifts from the spreadsheet. After updating the spreadshee
 `python3 -m modules.master_table` to rewrite this file from it.
 """
 
+import os
+
+SPREADSHEET = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "files", "Master_Table.xlsx")
 SPREADSHEET_SPF = {
     "-all": "-all",
     "all-": "-all",
@@ -244,14 +247,14 @@ TABLE = {
 }
 
 
-if __name__ == "__main__":
-    import os
-
-    module = os.path.abspath(__file__)
+def regenerate(module=__file__, spreadsheet=SPREADSHEET):
+    """Rewrite TABLE in `module` from the spreadsheet, leaving the rest of the file as is."""
     with open(module) as f:
-        source = f.read()
-    before, rest = source.split("TABLE = {\n", 1)
+        before, rest = f.read().split("TABLE = {\n", 1)
     after = rest.split("\n}\n", 1)[1]
-    spreadsheet = os.path.join(os.path.dirname(module), "..", "files", "Master_Table.xlsx")
     with open(module, "w") as f:
         f.write(before + render(load_spreadsheet(spreadsheet)) + after)
+
+
+if __name__ == "__main__":
+    regenerate()

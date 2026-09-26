@@ -6,10 +6,7 @@ import tldextract
 def registered_domain(name):
     """Registrable domain per the Public Suffix List ('' when `name` is itself a public suffix)."""
     extracted = tldextract.extract(name)
-    # tldextract >= 5.3 renamed registered_domain and warns on the old name.
-    if hasattr(extracted, "top_domain_under_public_suffix"):
-        return extracted.top_domain_under_public_suffix
-    return extracted.registered_domain
+    return f"{extracted.domain}.{extracted.suffix}" if extracted.domain and extracted.suffix else ""
 
 
 def is_subdomain(name):

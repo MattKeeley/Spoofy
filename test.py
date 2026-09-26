@@ -5,33 +5,37 @@ import io
 import itertools
 import json
 import os
+import shutil
+import tempfile
 import unittest
 from types import SimpleNamespace
 from unittest import mock
 
 import dns.exception
 import dns.resolver
+import openpyxl
+import requests
 
 import spoofy
-from modules import report
+from modules import master_table, report
 from modules.dkim import DKIM
 from modules.dmarc import DMARC, POLICIES, parse_tags, tree_walk_targets
+from modules.master_table import SPREADSHEET, load_spreadsheet
 from modules.master_table import TABLE as MASTER_TABLE
-from modules.master_table import load_spreadsheet
-from modules.resolver import DNSResult, Resolver, txt_to_str
+from modules.resolver import DNSResult, Resolver, get_resolver, txt_to_str
 from modules.spf import SPF, parse_terms
-from modules.spoofing import SPF_STATES, lookup
-
-SPREADSHEET = os.path.join(os.path.dirname(__file__), "files", "Master_Table.xlsx")
+from modules.spoofing import lookup
 
 
 class FakeResolver:
-    """Answers from a dict; every other name is NXDOMAIN."""
+    """Answers TXT lookups from a dict of record lists or DNSResults; anything else is NXDOMAIN."""
 
     nameservers = ("fake",)
 
     def __init__(self, txt=None, other=None):
-        self.records = {name: DNSResult("ok", tuple(v)) for name, v in (txt or {}).items()}
+        self.records = {
+            name: v if isinstance(v, DNSResult) else DNSResult("ok", tuple(v)) for name, v in (txt or {}).items()
+        }
         self.other = other or {}
 
     def txt(self, name):
@@ -66,8 +70,8 @@ class TestDMARCParsing(unittest.TestCase):
     def test_np_is_not_read_as_p(self):
         self.assertEqual(parse_tags("v=DMARC1; np=reject; p=none")["p"], "none")
 
-    def test_case_and_whitespace(self):
-        self.assertEqual(parse_tags("v=DMARC1; P = reject ")["p"], "reject")
+    def test_case_whitespace_and_duplicates(self):
+        self.assertEqual(parse_tags("v=DMARC1; P = reject ; p=none;;")["p"], "reject")
 
     def test_tree_walk_targets(self):
         self.assertEqual(
@@ -139,7 +143,7 @@ class TestDMARCDiscovery(unittest.TestCase):
         self.assertEqual(d.policy, "reject")
 
     def test_non_dmarc_txt_ignored(self):
-        records = {"_dmarc.example.com": ["google-site-verification=DMARC1", "v=DMARC1; p=reject"]}
+        records = {"_dmarc.example.com": ["unrelated", "google-site-verification=DMARC1", "v=DMARC1; p=reject"]}
         self.assertEqual(self.dmarc("example.com", records).policy, "reject")
 
     def test_invalid_policy_is_none_with_rua_else_ignored(self):
@@ -148,11 +152,12 @@ class TestDMARCDiscovery(unittest.TestCase):
         records = {"_dmarc.example.com": ["v=DMARC1; p=rejected"]}
         self.assertIsNone(self.dmarc("example.com", records).policy)
 
+    def test_invalid_aspf_falls_back_to_default(self):
+        d = self.dmarc("example.com", {"_dmarc.example.com": ["v=DMARC1; p=none; aspf=x"]})
+        self.assertEqual((d.aspf, len(d.warnings)), (None, 1))
+
     def test_lookup_error_is_not_no_dmarc(self):
-        records = {"example.com": DNSResult("ok", ("v=spf1 ~all",)),
-                   "_dmarc.example.com": DNSResult("error", error="Timeout")}
-        with mock.patch.object(FakeResolver, "txt", side_effect=lambda name: records.get(name, DNSResult("nxdomain"))):
-            self.assertEqual(code(None), 9)
+        self.assertEqual(code("v=spf1 ~all", records={"_dmarc.example.com": DNSResult("error", error="Timeout")}), 9)
 
 
 class TestResolver(unittest.TestCase):
@@ -167,6 +172,20 @@ class TestResolver(unittest.TestCase):
             self.assertEqual(r.txt("example.com").status, "error")
             self.assertEqual(r.txt("example.com").status, "nxdomain")
             self.assertEqual(r.txt("example.com").status, "nxdomain")  # now cached
+
+    def test_answers_are_parsed(self):
+        r = Resolver(["192.0.2.1"])
+        txt = SimpleNamespace(rrset=[SimpleNamespace(strings=[b"v=spf1 ", b"-all"])])
+        ns = SimpleNamespace(rrset=[SimpleNamespace(to_text=lambda: "ns1.example.com.")])
+        with mock.patch.object(r._resolver, "resolve", side_effect=[SimpleNamespace(rrset=None), txt, ns]):
+            self.assertEqual(r.txt("a.example.com").status, "nodata")
+            self.assertEqual(r.txt("b.example.com").records, ("v=spf1 -all",))
+            self.assertEqual(r.query("example.com", "NS").records, ("ns1.example.com.",))
+
+    def test_resolvers_are_shared_per_server(self):
+        self.assertIs(get_resolver(), get_resolver())
+        self.assertEqual(get_resolver("192.0.2.53").nameservers, ["192.0.2.53"])
+        self.assertIsNot(get_resolver("192.0.2.53"), get_resolver())
 
     def test_txt_strings_joined_without_spaces(self):
         rdata = SimpleNamespace(strings=[b"v=spf1 include:_spf.goo", b"gle.com ~all"])
@@ -198,8 +217,12 @@ class TestSPF(unittest.TestCase):
             ("v=spf1 a/24 mx/24 -all", 2),
             ("v=spf1 ptr:example.com -all", 1),
             ("v=spf1 a:x.com mx:y.com ptr exists:%{i}.z.com ip4:192.0.2.0/24 -all", 4),
+            ("v=spf1 include:%{i}._spf.example.net -all exp=explain.example.net", 1),  # macros aren't followed
         ]:
             self.assertEqual(self.spf(record).spf_dns_query_count, want, record)
+
+    def test_warnings_are_not_repeated(self):
+        self.assertEqual(len(self.spf("v=spf1 ptr ptr:example.com -all").warnings), 1)
 
     def test_nested_includes_counted(self):
         s = self.spf(
@@ -218,6 +241,15 @@ class TestSPF(unittest.TestCase):
         self.assertTrue(any("loop" in e for e in loop.errors))
         two = SPF("example.com", FakeResolver({"example.com": ["v=spf1 -all", "v=spf1 ~all"]}))
         self.assertTrue(two.errors)
+        extra = {"two.example.net": ["v=spf1 -all", "v=spf1 ~all"], "txt.example.net": ["verification=1"]}
+        for record in ["v=spf1 include: -all", "v=spf1 include:two.example.net -all",
+                       "v=spf1 include:txt.example.net -all"]:
+            self.assertEqual(len(self.spf(record, extra).errors), 1, record)
+
+    def test_include_chains_stop_at_max_depth(self):
+        chain = {f"c{n}.example.net": [f"v=spf1 include:c{n + 1}.example.net -all"] for n in range(20)}
+        s = self.spf("v=spf1 include:c0.example.net -all", chain)
+        self.assertEqual((s.spf_dns_query_count, s.too_many_dns_queries), (11, True))
 
     def test_void_lookups_and_dangling_include(self):
         s = self.spf(
@@ -226,6 +258,8 @@ class TestSPF(unittest.TestCase):
         )
         self.assertEqual((s.void_lookups, s.dangling_includes), (3, ["expired-vendor.net"]))
         self.assertTrue(s.errors)
+        nodata = self.spf("v=spf1 include:empty.example.net -all", {"empty.example.net": DNSResult("nodata")})
+        self.assertEqual((nodata.void_lookups, nodata.dangling_includes), (1, []))
 
     def test_failed_include_is_not_fatal_but_failed_record_is(self):
         r = FakeResolver({"example.com": ["v=spf1 include:flaky.example.net -all"]})
@@ -258,15 +292,28 @@ def record_for(dmarc):
 
 
 class TestMasterTable(unittest.TestCase):
-    def test_module_matches_spreadsheet(self):
-        self.assertEqual(list(load_spreadsheet(SPREADSHEET).items()), list(MASTER_TABLE.items()))
+    def test_module_is_exactly_what_regeneration_produces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = shutil.copy(master_table.__file__, tmp)
+            master_table.regenerate(copy, SPREADSHEET)
+            with open(copy) as regenerated, open(master_table.__file__) as current:
+                self.assertEqual(regenerated.read(), current.read())
+
+    def test_duplicate_spreadsheet_rows_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workbook = openpyxl.Workbook()
+            for row in (["SPF", "DMARC", "Code"], ["-all", "p=none", 4], ["all-", "p=none", 4]):
+                workbook.active.append(row)
+            workbook.save(os.path.join(tmp, "table.xlsx"))
+            with self.assertRaises(ValueError):
+                load_spreadsheet(os.path.join(tmp, "table.xlsx"))
 
     def test_every_row_is_reproduced(self):
         for (state, dmarc), expected in MASTER_TABLE.items():
             self.assertEqual(code(SPF_RECORDS[state], record_for(dmarc)), expected, (state, dmarc))
 
     def test_every_record_resolves_to_a_tested_row(self):
-        for state in SPF_STATES:
+        for state in {state for state, _ in MASTER_TABLE}:
             self.assertEqual(lookup(state), MASTER_TABLE[(state, None)])
             for p, sp, aspf in itertools.product(POLICIES, (None,) + POLICIES, (None, "r", "s")):
                 expected = MASTER_TABLE.get((state, (p, sp, aspf)), MASTER_TABLE.get((state, (p, p, aspf))))
@@ -299,14 +346,9 @@ class TestMasterTable(unittest.TestCase):
         self.assertEqual(code(None, domain="mail.example.com", records=partial), 3)
 
     def test_spf_lookup_error_only_matters_without_enforcement(self):
-        for dmarc, expected in [("v=DMARC1; p=reject", 8), ("v=DMARC1; p=none", 9)]:
-            records = {"example.com": DNSResult("error", error="Timeout"),
-                       "_dmarc.example.com": DNSResult("ok", (dmarc,))}
-            def answer(name, records=records):
-                return records.get(name, DNSResult("nxdomain"))
-
-            with mock.patch.object(FakeResolver, "txt", side_effect=answer):
-                self.assertEqual(code(None), expected, dmarc)
+        timeout = {"example.com": DNSResult("error", error="Timeout")}
+        self.assertEqual(code(None, "v=DMARC1; p=reject", records=timeout), 8)
+        self.assertEqual(code(None, "v=DMARC1; p=none", records=timeout), 9)
 
     def test_result_fields(self):
         result = run("v=spf1 ~all", "v=DMARC1; p=none; sp=reject")
@@ -321,7 +363,7 @@ class TestCLI(unittest.TestCase):
         self.assertEqual((result["SPOOFING_CODE"], result["ERROR"]), (9, "RuntimeError: boom"))
 
     def test_result_is_json_serializable(self):
-        bimi = {"default._bimi.example.com": ["v=BIMI1; l=https://example.com/logo.svg; a="]}
+        bimi = {"default._bimi.example.com": ["unrelated", "v=BIMI1; l=https://example.com/logo.svg; a="]}
         result = run(dmarc="v=DMARC1; p=reject", records=bimi)
         json.dumps(result)
         self.assertEqual((result["BIMI_LOCATION"], result["SPOOFING_CODE"]), ("https://example.com/logo.svg", 8))
@@ -338,18 +380,68 @@ class TestCLI(unittest.TestCase):
             self.assertIn(line, out.getvalue())
         self.assertNotIn("non-existent subdomain policy", out.getvalue())
 
+    def test_printer_full_and_error_results(self):
+        result = run("v=spf1 -all", records={"default._bimi.example.com": ["v=BIMI1; l=https://example.com/l.svg"]})
+        result.update(SPF_NUM_DNS_QUERIES=11, SPF_ERRORS=["11 DNS-querying terms (limit 10)"],
+                      SPF_DANGLING_INCLUDES=["gone.example"], DKIM="[*]    s1._domainkey.example.com -> k")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), mock.patch.object(spoofy, "process_domain", side_effect=OSError("x")):
+            report.printer(**result)
+            report.printer(**spoofy.safe_process_domain("example.com"))
+        for line in ["Too many SPF DNS query lookups 11.", "SPF permerror: 11 DNS-querying terms",
+                     "gone.example, which appears unregistered", "No DMARC record found.",
+                     "DKIM selectors:", "BIMI location: https://example.com/l.svg", "Error: OSError: x"]:
+            self.assertIn(line, out.getvalue())
+
     def test_dkim_keeps_latest_sighting_and_trims(self):
         dkim = DKIM.__new__(DKIM)
         dkim.domain = "example.com"
         formatted = dkim.format_dkim_records([
             {"selector": "s1", "value": "A" * 200, "lastSeenAt": "2024-01-01"},
             {"selector": "s1", "value": "B" * 200, "lastSeenAt": "2025-01-01"},
+            {"selector": "s1", "value": "C" * 200, "lastSeenAt": "2023-01-01"},
             {"selector": "s2", "domain": "x.example.com", "value": "short"},
             "junk",
         ])
         self.assertEqual(formatted, f"[*]    s1._domainkey.example.com -> {'B' * 128}...(trimmed)\r\n"
                                     "[*]    s2._domainkey.x.example.com -> short")
         self.assertIsNone(dkim.format_dkim_records({"error": "not a list"}))
+
+    def test_dkim_api_failures_give_no_record(self):
+        found = SimpleNamespace(status_code=200, json=lambda: [{"selector": "s1", "value": "k"}])
+        with mock.patch("requests.get", return_value=found):
+            self.assertEqual(DKIM("example.com").dkim_record, "[*]    s1._domainkey.example.com -> k")
+        with mock.patch("requests.get", return_value=SimpleNamespace(status_code=429)):
+            self.assertIsNone(DKIM("example.com").dkim_record)
+        with mock.patch("requests.get", side_effect=requests.exceptions.ConnectionError()):
+            self.assertIsNone(DKIM("example.com").dkim_record)
+
+    def cli(self, *argv):
+        dns = FakeResolver({"example.com": ["v=spf1 -all"], "_dmarc.example.com": ["v=DMARC1; p=reject"]})
+        out = io.StringIO()
+        with mock.patch.object(spoofy, "get_resolver", return_value=dns), \
+                mock.patch("sys.argv", ["spoofy.py", *argv]), contextlib.redirect_stdout(out):
+            spoofy.main()
+        return out.getvalue()
+
+    def test_cli_outputs(self):
+        cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            os.chdir(tmp)
+            try:
+                with open("domains.txt", "w") as f:
+                    f.write("example.com\nexample.org\n")
+                results = json.loads(self.cli("-iL", "domains.txt", "-o", "json", "-t", "2"))
+                self.assertEqual([r["DOMAIN"] for r in results], ["example.com", "example.org"])  # input order
+                self.assertIn("Spoofing is not possible for example.com.", self.cli("-d", "example.com"))
+                self.cli("-iL", "domains.txt", "-o", "xls")
+                self.cli("-d", "example.com", "-o", "xls")  # appends
+                self.assertEqual(openpyxl.load_workbook("output.xlsx").active.max_row, 4)
+                open("empty.txt", "w").close()
+                with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                    self.cli("-iL", "empty.txt")
+            finally:
+                os.chdir(cwd)
 
     def test_domain_list_normalization(self):
         path = os.path.join(os.path.dirname(__file__), ".test_domains.txt")

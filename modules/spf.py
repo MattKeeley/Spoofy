@@ -139,8 +139,7 @@ class SPF:
         if target in stack:
             self.errors.append(f"{kind} loop via {target}")
             return None
-        if depth >= MAX_DEPTH:
-            self.errors.append(f"{kind} chain deeper than {MAX_DEPTH}")
+        if depth >= MAX_DEPTH:  # bounds the work; the lookup limit error already covers it
             return None
 
         result = self.resolver.txt(target)

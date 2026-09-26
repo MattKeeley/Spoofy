@@ -2,8 +2,7 @@
 
 # spoofy.py
 import argparse
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 from modules import report
 from modules.bimi import BIMI
@@ -13,8 +12,6 @@ from modules.domains import is_subdomain, normalize_domain
 from modules.resolver import get_resolver
 from modules.spf import SPF
 from modules.spoofing import MESSAGES, POSSIBLE, spoofability
-
-print_lock = threading.Lock()
 
 
 def process_domain(domain, enable_dkim=False, dns_server=None, resolver=None):
@@ -129,27 +126,17 @@ def main():
     if not domains:
         parser.error("no domains to process")
 
-    results = []
     with ThreadPoolExecutor(max_workers=max(1, min(args.t, len(domains)))) as pool:
-        futures = [
-            pool.submit(safe_process_domain, domain, args.dkim, args.dns_server)
-            for domain in domains
-        ]
-        for future in as_completed(futures):
-            result = future.result()
-            if args.o == "stdout":
-                with print_lock:
-                    report.printer(**result)
-            else:
-                results.append(result)
-
-    order = {domain: i for i, domain in enumerate(domains)}
-    results.sort(key=lambda r: order[r["DOMAIN"]])
-    if args.o == "xls" and results:
-        report.write_to_excel(results)
-        print("Results written to output.xlsx")
-    elif args.o == "json":
-        report.output_json(results)
+        # map() runs the lookups concurrently and yields results in input order
+        results = pool.map(lambda domain: safe_process_domain(domain, args.dkim, args.dns_server), domains)
+        if args.o == "stdout":
+            for result in results:
+                report.printer(**result)
+        elif args.o == "xls":
+            report.write_to_excel(list(results))
+            print("Results written to output.xlsx")
+        else:
+            report.output_json(list(results))
 
 
 if __name__ == "__main__":

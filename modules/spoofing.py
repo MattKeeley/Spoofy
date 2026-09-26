@@ -2,7 +2,6 @@
 
 from .master_table import TABLE
 
-SPF_STATES = {state for state, _ in TABLE}
 PARTIAL = 3  # p=quarantine applied to only pct < 100 of mail
 UNKNOWN = 9  # a DNS lookup failed, so records may be missing from the evaluation
 
@@ -32,8 +31,6 @@ def lookup(spf_state, p=None, sp=None, aspf=None):
     enforcing p with an explicit aspf and no sp; sp defaults to p, so the tested row with sp
     written out is the same record.
     """
-    if spf_state not in SPF_STATES:
-        spf_state = "noall"
     if p is None:
         return TABLE[(spf_state, None)]
     key = (spf_state, (p, sp, aspf))
