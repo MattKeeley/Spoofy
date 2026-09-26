@@ -1,4 +1,4 @@
-# modules/bimi.py
+# spoofy/bimi.py
 
 import re
 

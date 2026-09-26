@@ -1,4 +1,4 @@
-# modules/dmarc.py
+# spoofy/dmarc.py
 
 import re
 

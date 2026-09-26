@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spoofy"
+version = "1.1.0"
+description = "Checks whether domains can be spoofed, using manually tested SPF and DMARC results"
+readme = "README.md"
+license = "CC-BY-NC-4.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Matt Keeley" }]
+requires-python = ">=3.9"
+dependencies = ["colorama", "dnspython>=2.2.1", "openpyxl", "pandas", "requests", "tldextract"]
+keywords = ["spf", "dmarc", "email", "spoofing", "security"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Topic :: Security",
+]
+
+[project.urls]
+Homepage = "https://github.com/MattKeeley/Spoofy"
+
+[project.scripts]
+spoofy = "spoofy.cli:main"
+
+[tool.setuptools]
+packages = ["spoofy"]

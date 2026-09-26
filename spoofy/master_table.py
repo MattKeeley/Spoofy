@@ -1,4 +1,4 @@
-# modules/master_table.py
+# spoofy/master_table.py
 """files/Master_Table.xlsx as data: the manually tested outcome of every SPF/DMARC combination.
 
 Keys are (SPF state, DMARC tags as written in the record). The SPF state is "-all", "~all",
@@ -6,7 +6,7 @@ Keys are (SPF state, DMARC tags as written in the record). The SPF state is "-al
 for no DMARC record, else (p, sp, aspf) with None for a tag the record leaves out.
 
 test.py fails if this drifts from the spreadsheet. After updating the spreadsheet, run
-`python3 -m modules.master_table` to rewrite this file from it.
+`python3 -m spoofy.master_table` to rewrite this file from it.
 """
 
 import os

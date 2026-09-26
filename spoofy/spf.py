@@ -1,4 +1,4 @@
-# modules/spf.py
+# spoofy/spf.py
 
 import re
 from dataclasses import dataclass

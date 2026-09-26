@@ -1,4 +1,4 @@
-# modules/spoofing.py
+# spoofy/spoofing.py
 
 from .master_table import TABLE
 

@@ -1,4 +1,4 @@
-# modules/domains.py
+# spoofy/domains.py
 
 import tldextract
 

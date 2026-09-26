@@ -16,15 +16,14 @@ import dns.resolver
 import openpyxl
 import requests
 
-import spoofy
-from modules import master_table, report
-from modules.dkim import DKIM
-from modules.dmarc import DMARC, POLICIES, parse_tags, tree_walk_targets
-from modules.master_table import SPREADSHEET, load_spreadsheet
-from modules.master_table import TABLE as MASTER_TABLE
-from modules.resolver import DNSResult, Resolver, get_resolver, txt_to_str
-from modules.spf import SPF, parse_terms
-from modules.spoofing import lookup
+from spoofy import cli, master_table, report
+from spoofy.dkim import DKIM
+from spoofy.dmarc import DMARC, POLICIES, parse_tags, tree_walk_targets
+from spoofy.master_table import SPREADSHEET, load_spreadsheet
+from spoofy.master_table import TABLE as MASTER_TABLE
+from spoofy.resolver import DNSResult, Resolver, get_resolver, txt_to_str
+from spoofy.spf import SPF, parse_terms
+from spoofy.spoofing import lookup
 
 
 class FakeResolver:
@@ -56,7 +55,7 @@ def run(spf="v=spf1 -all", dmarc=None, domain="example.com", records=None, exist
     if dmarc:
         txt[f"_dmarc.{domain}"] = [dmarc]
     other = {(domain, "A"): DNSResult("ok", ("192.0.2.1",))} if exists else {}
-    return spoofy.process_domain(domain, resolver=FakeResolver(txt, other))
+    return cli.process_domain(domain, resolver=FakeResolver(txt, other))
 
 
 def code(*args, **kwargs):
@@ -482,10 +481,8 @@ class TestMasterTable(unittest.TestCase):
 
 class TestCLI(unittest.TestCase):
     def test_worker_errors_do_not_escape(self):
-        with mock.patch.object(
-            spoofy, "process_domain", side_effect=RuntimeError("boom")
-        ):
-            result = spoofy.safe_process_domain("example.com")
+        with mock.patch.object(cli, "process_domain", side_effect=RuntimeError("boom")):
+            result = cli.safe_process_domain("example.com")
         self.assertEqual(
             (result["SPOOFING_CODE"], result["ERROR"]), (9, "RuntimeError: boom")
         )
@@ -545,10 +542,10 @@ class TestCLI(unittest.TestCase):
         out = io.StringIO()
         with (
             contextlib.redirect_stdout(out),
-            mock.patch.object(spoofy, "process_domain", side_effect=OSError("x")),
+            mock.patch.object(cli, "process_domain", side_effect=OSError("x")),
         ):
             report.printer(**result)
-            report.printer(**spoofy.safe_process_domain("example.com"))
+            report.printer(**cli.safe_process_domain("example.com"))
         for line in [
             "Too many SPF DNS query lookups 11.",
             "SPF permerror: 11 DNS-querying terms",
@@ -603,11 +600,11 @@ class TestCLI(unittest.TestCase):
         )
         out = io.StringIO()
         with (
-            mock.patch.object(spoofy, "get_resolver", return_value=dns),
+            mock.patch.object(cli, "get_resolver", return_value=dns),
             mock.patch("sys.argv", ["spoofy.py", *argv]),
             contextlib.redirect_stdout(out),
         ):
-            spoofy.main()
+            cli.main()
         return out.getvalue()
 
     def test_cli_outputs(self):
@@ -649,7 +646,7 @@ class TestCLI(unittest.TestCase):
             )
         try:
             args = SimpleNamespace(d=None, iL=path)
-            self.assertEqual(spoofy.read_domains(args), ["example.com", "example.org"])
+            self.assertEqual(cli.read_domains(args), ["example.com", "example.org"])
         finally:
             os.remove(path)
 

@@ -1,6 +1,6 @@
 <h1 align="center">
 <br>
-<img src=/files/Spoofy_logo.png height="375" border="2px solid #555">
+<img src=https://raw.githubusercontent.com/MattKeeley/Spoofy/main/files/Spoofy_logo.png height="375" border="2px solid #555">
 <br>
 Spoofy
 </h1>
@@ -27,13 +27,20 @@ Well, Spoofy is different and here is why:
 
 ## HOW TO USE
 
-`Spoofy` requires **Python 3+**. Python 2 is not supported. Usage is shown below:
+`Spoofy` requires **Python 3.9+**. Install it from PyPI:
+
+```console
+pip3 install spoofy
+spoofy -d example.com
+```
+
+Or run it from a clone with `pip3 install -r requirements.txt` and `./spoofy.py` in place of `spoofy`. Usage is shown below:
 
 ```console
 Usage:
-    ./spoofy.py -d [DOMAIN] -o [stdout, xls or json] -t [NUMBER_OF_THREADS] [--dkim] [--dns-server IP]
+    spoofy -d [DOMAIN] -o [stdout, xls or json] -t [NUMBER_OF_THREADS] [--dkim] [--dns-server IP]
     OR
-    ./spoofy.py -iL [DOMAIN_LIST] -o [stdout, xls or json] -t [NUMBER_OF_THREADS] [--dkim] [--dns-server IP]
+    spoofy -iL [DOMAIN_LIST] -o [stdout, xls or json] -t [NUMBER_OF_THREADS] [--dkim] [--dns-server IP]
 
 Options:
     -d            : Process a single domain.
@@ -44,19 +51,16 @@ Options:
     --dns-server  : Query this resolver instead of 1.1.1.1, 8.8.8.8 and 9.9.9.9.
 
 Examples:
-    ./spoofy.py -d example.com -t 10
-    ./spoofy.py -d example.com --dkim
-    ./spoofy.py -iL domains.txt -o xls
-    ./spoofy.py -iL domains.txt -o json --dkim
-
-Install Dependencies:
-    pip3 install -r requirements.txt
+    spoofy -d example.com -t 10
+    spoofy -d example.com --dkim
+    spoofy -iL domains.txt -o xls
+    spoofy -iL domains.txt -o json --dkim
 ```
 
 ## HOW DO YOU KNOW ITS SPOOFABLE
 
 (The spoofability table lists every combination of SPF and DMARC configurations that impact deliverability to the inbox, except for DKIM modifiers.)
-[Download Here](/files/Master_Table.xlsx)
+[Download Here](https://raw.githubusercontent.com/MattKeeley/Spoofy/main/files/Master_Table.xlsx)
 
 | Code | Result | `SPOOFING_POSSIBLE` |
 | ---- | ------ | ------------------- |
@@ -71,7 +75,7 @@ Install Dependencies:
 | 8 | Spoofing is not possible | `false` |
 | 9 | Unable to determine (a DNS lookup failed) | `null` |
 
-The verdict is the tested code for the domain's SPF `all` mechanism and the DMARC `p`, `sp` and `aspf` tags as the record writes them. `modules/master_table.py` holds the spreadsheet as data (`python3 -m modules.master_table` rewrites it after the spreadsheet changes), and `test.py` checks that every row is reproduced. Inputs the table does not cover are handled as follows:
+The verdict is the tested code for the domain's SPF `all` mechanism and the DMARC `p`, `sp` and `aspf` tags as the record writes them. `spoofy/master_table.py` holds the spreadsheet as data (`python3 -m spoofy.master_table` rewrites it after the spreadsheet changes), and `test.py` checks that every row is reproduced. Inputs the table does not cover are handled as follows:
 
 - **An enforcing `p` with `aspf` but no `sp`** (24 untested combinations): `sp` defaults to `p`, so the tested row with `sp` written out is used.
 - **A DMARC record inherited from a parent domain** (a subdomain without its own `_dmarc` record): the subdomain outcome tested for the parent's SPF and DMARC records, with `np` in place of `sp` when the subdomain does not exist.
@@ -95,4 +99,4 @@ After the initial testing using Microsoft 365, some combinations were retested u
 
 ## LICENSE
 
-This project is licensed under the Creative Commons Zero v1.0 Universal - see the [LICENSE](LICENSE) file for details
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License - see the [LICENSE](https://github.com/MattKeeley/Spoofy/blob/main/LICENSE) file for details

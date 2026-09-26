@@ -1,4 +1,4 @@
-# modules/dkim.py
+# spoofy/dkim.py
 
 API_URL = "https://archive.prove.email/api/key"
 

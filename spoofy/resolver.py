@@ -1,4 +1,4 @@
-# modules/resolver.py
+# spoofy/resolver.py
 
 import threading
 from dataclasses import dataclass, field
