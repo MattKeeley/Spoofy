@@ -53,12 +53,25 @@ DMARC_LINES = (
     ("DMARC_POLICY", "Found DMARC policy: {}", "No DMARC policy found.", "info"),
     ("DMARC_PCT", "Found DMARC pct: {}", "No DMARC pct found.", "info"),
     ("DMARC_ASPF", "Found DMARC aspf: {}", "No DMARC aspf found.", "info"),
-    ("DMARC_SP", "Found DMARC subdomain policy: {}", "No DMARC subdomain policy found.", "info"),
+    (
+        "DMARC_SP",
+        "Found DMARC subdomain policy: {}",
+        "No DMARC subdomain policy found.",
+        "info",
+    ),
     ("DMARC_NP", "Found DMARC non-existent subdomain policy: {}", None, "info"),
-    ("DMARC_FORENSIC_REPORT", "Forensics reports will be sent: {}",
-     "No DMARC forensics report location found.", "indifferent"),
-    ("DMARC_AGGREGATE_REPORT", "Aggregate reports will be sent to: {}",
-     "No DMARC aggregate report location found.", "indifferent"),
+    (
+        "DMARC_FORENSIC_REPORT",
+        "Forensics reports will be sent: {}",
+        "No DMARC forensics report location found.",
+        "indifferent",
+    ),
+    (
+        "DMARC_AGGREGATE_REPORT",
+        "Aggregate reports will be sent to: {}",
+        "No DMARC aggregate report location found.",
+        "indifferent",
+    ),
 )
 
 
@@ -73,18 +86,26 @@ def printer(**result):
         output_message("[?]", get("SPOOFING_TYPE"), "warning")
         print()
         return
-    output_message("[*]", f"Is subdomain: {get('DOMAIN_TYPE') == 'subdomain'}", "indifferent")
+    output_message(
+        "[*]", f"Is subdomain: {get('DOMAIN_TYPE') == 'subdomain'}", "indifferent"
+    )
     output_message("[*]", f"DNS Server: {get('DNS_SERVER')}", "indifferent")
 
     if get("SPF"):
         spf_all, count = get("SPF_MULTIPLE_ALLS"), get("SPF_NUM_DNS_QUERIES")
         output_message("[*]", f"SPF record: {get('SPF')}", "info")
         output_message(
-            "[*]", f"SPF all record: {spf_all}" if spf_all else "SPF does not contain an `All` item.", "info"
+            "[*]",
+            f"SPF all record: {spf_all}"
+            if spf_all
+            else "SPF does not contain an `All` item.",
+            "info",
         )
         output_message(
             "[*]",
-            f"SPF DNS query count: {count}" if count <= 10 else f"Too many SPF DNS query lookups {count}.",
+            f"SPF DNS query count: {count}"
+            if count <= 10
+            else f"Too many SPF DNS query lookups {count}.",
             "info",
         )
         for error in get("SPF_ERRORS") or []:
@@ -101,17 +122,25 @@ def printer(**result):
     if get("DMARC"):
         output_message("[*]", f"DMARC record: {get('DMARC')}", "info")
         if get("DMARC_RECORD_DOMAIN") not in (None, domain):
-            output_message("[*]", f"DMARC record inherited from {get('DMARC_RECORD_DOMAIN')}.", "info")
+            output_message(
+                "[*]",
+                f"DMARC record inherited from {get('DMARC_RECORD_DOMAIN')}.",
+                "info",
+            )
         for key, found, missing, level in DMARC_LINES:
             if get(key) or missing:
-                output_message("[*]", found.format(get(key)) if get(key) else missing, level)
+                output_message(
+                    "[*]", found.format(get(key)) if get(key) else missing, level
+                )
     else:
         output_message("[?]", "No DMARC record found.", "warning")
 
     if get("DKIM"):
         output_message("[*]", f"DKIM selectors: \r\n{get('DKIM')}", "info")
     else:
-        output_message("[?]", f"No known DKIM selectors enumerated on {domain}.", "warning")
+        output_message(
+            "[?]", f"No known DKIM selectors enumerated on {domain}.", "warning"
+        )
 
     if get("BIMI_RECORD"):
         output_message("[*]", f"BIMI record: {get('BIMI_RECORD')}", "info")

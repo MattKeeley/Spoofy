@@ -39,7 +39,9 @@ def parse_terms(record):
         if sep == "=":
             terms.append(Term(None, name.lower(), value))
         else:
-            terms.append(Term(qualifier or "+", name.lower(), value if sep == ":" else ""))
+            terms.append(
+                Term(qualifier or "+", name.lower(), value if sep == ":" else "")
+            )
     return terms
 
 
@@ -96,7 +98,9 @@ class SPF:
             return None
         records = [r.strip() for r in result.records if is_spf_record(r)]
         if len(records) > 1:
-            self.errors.append(f"{len(records)} SPF records published (only one allowed)")
+            self.errors.append(
+                f"{len(records)} SPF records published (only one allowed)"
+            )
         return records[0] if records else None
 
     def _walk(self, domain, record, depth, stack):
@@ -109,9 +113,13 @@ class SPF:
                     redirect = term.value
             # A syntax error anywhere, even after 'all', is a permerror (RFC 7208 4.6).
             elif term.name not in KNOWN_MECHANISMS:
-                self.errors.append(f"unknown mechanism '{term.name}' in SPF for {domain}")
+                self.errors.append(
+                    f"unknown mechanism '{term.name}' in SPF for {domain}"
+                )
             elif term.name in ("ip4", "ip6") and not term.value:
-                self.errors.append(f"'{term.name}' without an address in SPF for {domain}")
+                self.errors.append(
+                    f"'{term.name}' without an address in SPF for {domain}"
+                )
             elif all_mechanism:
                 continue  # evaluation stopped at 'all': later terms cost no lookups
             elif term.name == "all":
@@ -123,7 +131,8 @@ class SPF:
                 if term.name == "include":
                     self._follow(term.value, "include", depth, stack)
 
-        if redirect and all_mechanism is None:  # redirect= is ignored when 'all' is present
+        # redirect= is ignored when 'all' is present
+        if redirect and all_mechanism is None:
             self.spf_dns_query_count += 1
             all_mechanism = self._follow(redirect, "redirect", depth, stack)
         return all_mechanism
@@ -139,7 +148,8 @@ class SPF:
         if target in stack:
             self.errors.append(f"{kind} loop via {target}")
             return None
-        if depth >= MAX_DEPTH:  # bounds the work; the lookup limit error already covers it
+        # Bounds the work; the lookup limit error already covers an over-deep chain.
+        if depth >= MAX_DEPTH:
             return None
 
         result = self.resolver.txt(target)

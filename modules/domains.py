@@ -6,7 +6,11 @@ import tldextract
 def registered_domain(name):
     """Registrable domain per the Public Suffix List ('' when `name` is itself a public suffix)."""
     extracted = tldextract.extract(name)
-    return f"{extracted.domain}.{extracted.suffix}" if extracted.domain and extracted.suffix else ""
+    return (
+        f"{extracted.domain}.{extracted.suffix}"
+        if extracted.domain and extracted.suffix
+        else ""
+    )
 
 
 def is_subdomain(name):

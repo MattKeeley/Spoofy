@@ -17,7 +17,13 @@ MESSAGES = {
     8: "Spoofing is not possible for {}.",
     9: "Unable to determine spoofability for {} (DNS lookup failed).",
 }
-POSSIBLE = {0: True, 1: True, 2: True, 7: True, 8: False}  # every other code: maybe (None)
+POSSIBLE = {
+    0: True,
+    1: True,
+    2: True,
+    7: True,
+    8: False,
+}  # every other code: maybe (None)
 
 # The subdomain half of each code: what the table says about spoofing a subdomain of a
 # domain with that code (possible -> 0, mailbox dependent -> 4, not possible -> 8).

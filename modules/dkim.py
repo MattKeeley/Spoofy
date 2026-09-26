@@ -37,7 +37,9 @@ class DKIM:
                 continue
             selector = record.get("selector", "unknown")
             name = f"{selector}._domainkey.{record.get('domain', self.domain)}"
-            if name not in latest or record.get("lastSeenAt", "") > latest[name].get("lastSeenAt", ""):
+            if name not in latest or record.get("lastSeenAt", "") > latest[name].get(
+                "lastSeenAt", ""
+            ):
                 latest[name] = record
 
         lines = []

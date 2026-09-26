@@ -24,10 +24,14 @@ def process_domain(domain, enable_dkim=False, dns_server=None, resolver=None):
 
     warnings = spf.warnings + dmarc.warnings
     if resolver.txt(domain).status == "nxdomain":
-        warnings.insert(0, f"{domain} does not exist (NXDOMAIN); most receivers reject mail from it")
+        warnings.insert(
+            0, f"{domain} does not exist (NXDOMAIN); most receivers reject mail from it"
+        )
 
     # An inherited DMARC record was tested together with the parent's SPF record.
-    code = spoofability(SPF(dmarc.record_domain, resolver) if dmarc.inherited else spf, dmarc)
+    code = spoofability(
+        SPF(dmarc.record_domain, resolver) if dmarc.inherited else spf, dmarc
+    )
 
     return {
         "DOMAIN": domain,
@@ -128,7 +132,10 @@ def main():
 
     with ThreadPoolExecutor(max_workers=max(1, min(args.t, len(domains)))) as pool:
         # map() runs the lookups concurrently and yields results in input order
-        results = pool.map(lambda domain: safe_process_domain(domain, args.dkim, args.dns_server), domains)
+        results = pool.map(
+            lambda domain: safe_process_domain(domain, args.dkim, args.dns_server),
+            domains,
+        )
         if args.o == "stdout":
             for result in results:
                 report.printer(**result)
