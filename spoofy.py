@@ -3,108 +3,101 @@
 # spoofy.py
 import argparse
 import threading
-from queue import Queue
-from modules.dns import DNS
-from modules.spf import SPF
-from modules.dmarc import DMARC
-from modules.dkim import DKIM
-from modules.bimi import BIMI
-from modules.spoofing import Spoofing
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from modules import report
+from modules.bimi import BIMI
+from modules.dkim import DKIM
+from modules.dmarc import DMARC
+from modules.domains import is_subdomain, normalize_domain
+from modules.resolver import get_resolver
+from modules.spf import SPF
+from modules.spoofing import MESSAGES, POSSIBLE, spoofability
 
 print_lock = threading.Lock()
 
 
-def process_domain(domain, enable_dkim=False):
-    """Process a domain to gather DNS, SPF, DMARC, and BIMI records. Optionally enumerate DKIM selectors if enabled."""
-    dns_info = DNS(domain)
-    spf = SPF(domain, dns_info.dns_server)
-    dmarc = DMARC(domain, dns_info.dns_server)
-    bimi_info = BIMI(domain, dns_info.dns_server)
+def process_domain(domain, enable_dkim=False, dns_server=None, resolver=None):
+    """Process a domain to gather SPF, DMARC, and BIMI records. Optionally enumerate DKIM selectors if enabled."""
+    resolver = resolver or get_resolver(dns_server)
+    spf = SPF(domain, resolver)
+    dmarc = DMARC(domain, resolver)
+    bimi = BIMI(domain, resolver)
+    dkim_record = DKIM(domain).dkim_record if enable_dkim else None
 
-    spf_record = spf.spf_record
-    spf_all = spf.all_mechanism
-    spf_dns_query_count = spf.spf_dns_query_count
-    spf_too_many_dns_queries = spf.too_many_dns_queries
+    warnings = spf.warnings + dmarc.warnings
+    if resolver.txt(domain).status == "nxdomain":
+        warnings.insert(0, f"{domain} does not exist (NXDOMAIN); most receivers reject mail from it")
 
-    dmarc_record = dmarc.dmarc_record
-    dmarc_p = dmarc.policy
-    dmarc_pct = dmarc.pct
-    dmarc_aspf = dmarc.aspf
-    dmarc_sp = dmarc.sp
-    dmarc_fo = dmarc.fo
-    dmarc_rua = dmarc.rua
+    # An inherited DMARC record was tested together with the parent's SPF record.
+    code = spoofability(SPF(dmarc.record_domain, resolver) if dmarc.inherited else spf, dmarc)
 
-    dkim_record = None
-    if enable_dkim:
-        dkim = DKIM(domain, dns_info.dns_server)
-        dkim_record = dkim.dkim_record
-
-    bimi_record = bimi_info.bimi_record
-    bimi_version = bimi_info.version
-    bimi_location = bimi_info.location
-    bimi_authority = bimi_info.authority
-
-    spoofing_info = Spoofing(
-        domain,
-        dmarc_record,
-        dmarc_p,
-        dmarc_aspf,
-        spf_record,
-        spf_all,
-        spf_dns_query_count,
-        dmarc_sp,
-        dmarc_pct,
-    )
-
-    domain_type = spoofing_info.domain_type
-    spoofing_possible = spoofing_info.spoofing_possible
-    spoofing_type = spoofing_info.spoofing_type
-
-    result = {
+    return {
         "DOMAIN": domain,
-        "DOMAIN_TYPE": domain_type,
-        "DNS_SERVER": dns_info.dns_server,
-        "SPF": spf_record,
-        "SPF_MULTIPLE_ALLS": spf_all,
-        "SPF_NUM_DNS_QUERIES": spf_dns_query_count,
-        "SPF_TOO_MANY_DNS_QUERIES": spf_too_many_dns_queries,
-        "DMARC": dmarc_record,
-        "DMARC_POLICY": dmarc_p,
-        "DMARC_PCT": dmarc_pct,
-        "DMARC_ASPF": dmarc_aspf,
-        "DMARC_SP": dmarc_sp,
-        "DMARC_FORENSIC_REPORT": dmarc_fo,
-        "DMARC_AGGREGATE_REPORT": dmarc_rua,
+        "DOMAIN_TYPE": "subdomain" if is_subdomain(domain) else "domain",
+        "DNS_SERVER": ", ".join(resolver.nameservers),
+        "SPF": spf.spf_record,
+        "SPF_MULTIPLE_ALLS": spf.all_mechanism,
+        "SPF_NUM_DNS_QUERIES": spf.spf_dns_query_count,
+        "SPF_TOO_MANY_DNS_QUERIES": spf.too_many_dns_queries,
+        "SPF_VOID_LOOKUPS": spf.void_lookups,
+        "SPF_ERRORS": spf.errors,
+        "SPF_DANGLING_INCLUDES": spf.dangling_includes,
+        "DMARC": dmarc.dmarc_record,
+        "DMARC_RECORD_DOMAIN": dmarc.record_domain,
+        "DMARC_POLICY": dmarc.policy,
+        "DMARC_PCT": dmarc.pct,
+        "DMARC_ASPF": dmarc.aspf,
+        "DMARC_SP": dmarc.sp,
+        "DMARC_NP": dmarc.np,
+        "DMARC_T": dmarc.t,
+        "DMARC_FORENSIC_REPORT": dmarc.ruf,
+        "DMARC_AGGREGATE_REPORT": dmarc.rua,
         "DKIM": dkim_record,
-        "BIMI_RECORD": bimi_record,
-        "BIMI_VERSION": bimi_version,
-        "BIMI_LOCATION": bimi_location,
-        "BIMI_AUTHORITY": bimi_authority,
-        "SPOOFING_POSSIBLE": spoofing_possible,
-        "SPOOFING_TYPE": spoofing_type,
+        "BIMI_RECORD": bimi.bimi_record,
+        "BIMI_VERSION": bimi.version,
+        "BIMI_LOCATION": bimi.location,
+        "BIMI_AUTHORITY": bimi.authority,
+        "WARNINGS": warnings,
+        "SPOOFING_CODE": code,
+        "SPOOFING_POSSIBLE": POSSIBLE.get(code),
+        "SPOOFING_TYPE": MESSAGES[code].format(domain),
+        "ERROR": None,
     }
-    return result
 
 
-def worker(domain_queue, print_lock, output, results, enable_dkim=False):
-    """Worker function to process domains and output results."""
-    while True:
-        domain = domain_queue.get()
-        if domain is None:
-            break
-        result = process_domain(domain, enable_dkim=enable_dkim)
-        with print_lock:
-            if output == "stdout":
-                report.printer(**result)
-            else:
-                results.append(result)
-        domain_queue.task_done()
+def safe_process_domain(domain, enable_dkim=False, dns_server=None):
+    """process_domain that never raises, so one bad domain cannot stall a bulk run."""
+    try:
+        return process_domain(domain, enable_dkim=enable_dkim, dns_server=dns_server)
+    except Exception as e:  # noqa: BLE001 - one bad domain must not stall a bulk run
+        return {
+            "DOMAIN": domain,
+            "SPOOFING_CODE": 9,
+            "SPOOFING_POSSIBLE": None,
+            "SPOOFING_TYPE": f"Unable to determine spoofability for {domain} ({type(e).__name__}: {e}).",
+            "ERROR": f"{type(e).__name__}: {e}",
+        }
+
+
+def read_domains(args):
+    if args.d:
+        raw = [args.d]
+    else:
+        with open(args.iL, "r") as file:
+            raw = file.read().splitlines()
+    domains = []
+    for line in raw:
+        line = line.split("#", 1)[0]
+        domain = normalize_domain(line) if line.strip() else ""
+        if domain and domain not in domains:
+            domains.append(domain)
+    return domains
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Process domains to gather DNS, SPF, DMARC, and BIMI records. Use --dkim to enable DKIM selector enumeration."
+        description="Process domains to gather SPF, DMARC, and BIMI records. Use --dkim to enable DKIM selector enumeration."
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-d", type=str, help="Single domain to process.")
@@ -116,7 +109,7 @@ def main():
         type=str,
         choices=["stdout", "xls", "json"],
         default="stdout",
-        help="Output format: stdout or xls (default: stdout).",
+        help="Output format: stdout, xls, or json (default: stdout).",
     )
     parser.add_argument(
         "-t", type=int, default=4, help="Number of threads to use (default: 4)"
@@ -124,41 +117,39 @@ def main():
     parser.add_argument(
         "--dkim", action="store_true", help="Enable DKIM selector enumeration via API"
     )
+    parser.add_argument(
+        "--dns-server",
+        type=str,
+        default=None,
+        help="Resolver to query (default: 1.1.1.1, 8.8.8.8, 9.9.9.9 with failover)",
+    )
 
     args = parser.parse_args()
+    domains = read_domains(args)
+    if not domains:
+        parser.error("no domains to process")
 
-    if args.d:
-        domains = [args.d]
-    elif args.iL:
-        with open(args.iL, "r") as file:
-            domains = [line.strip() for line in file]
-
-    domain_queue = Queue()
     results = []
+    with ThreadPoolExecutor(max_workers=max(1, min(args.t, len(domains)))) as pool:
+        futures = [
+            pool.submit(safe_process_domain, domain, args.dkim, args.dns_server)
+            for domain in domains
+        ]
+        for future in as_completed(futures):
+            result = future.result()
+            if args.o == "stdout":
+                with print_lock:
+                    report.printer(**result)
+            else:
+                results.append(result)
 
-    for domain in domains:
-        domain_queue.put(domain)
-
-    threads = []
-    for _ in range(min(args.t, len(domains))):
-        thread = threading.Thread(
-            target=worker, args=(domain_queue, print_lock, args.o, results, args.dkim)
-        )
-        thread.start()
-        threads.append(thread)
-
-    domain_queue.join()
-
+    order = {domain: i for i, domain in enumerate(domains)}
+    results.sort(key=lambda r: order[r["DOMAIN"]])
     if args.o == "xls" and results:
         report.write_to_excel(results)
         print("Results written to output.xlsx")
-    elif args.o == "json" and results:
+    elif args.o == "json":
         report.output_json(results)
-
-    for _ in range(len(threads)):
-        domain_queue.put(None)
-    for thread in threads:
-        thread.join()
 
 
 if __name__ == "__main__":
