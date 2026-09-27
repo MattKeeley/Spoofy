@@ -525,6 +525,32 @@ class TestCLI(unittest.TestCase):
         ]:
             self.assertIn(line, out.getvalue())
         self.assertNotIn("non-existent subdomain policy", out.getvalue())
+        # --dkim was not used, so the printer says nothing about DKIM
+        self.assertNotIn("DKIM", out.getvalue())
+
+    def test_dkim_line_gated_on_whether_it_was_checked(self):
+        dns = FakeResolver(
+            {
+                "example.com": ["v=spf1 -all"],
+                "_dmarc.example.com": ["v=DMARC1; p=reject"],
+            }
+        )
+        # --dkim not used: the result records that, and the printer stays silent
+        not_checked = cli.process_domain("example.com", resolver=dns)
+        self.assertIs(not_checked["DKIM_CHECKED"], False)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            report.printer(**not_checked)
+        self.assertNotIn("DKIM", out.getvalue())
+        # --dkim used but nothing found: the result records that, and the printer says so
+        with mock.patch.object(cli, "DKIM") as fake_dkim:
+            fake_dkim.return_value.dkim_record = None
+            checked = cli.process_domain("example.com", enable_dkim=True, resolver=dns)
+        self.assertIs(checked["DKIM_CHECKED"], True)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            report.printer(**checked)
+        self.assertIn("No known DKIM selectors enumerated", out.getvalue())
 
     def test_printer_full_and_error_results(self):
         result = run(

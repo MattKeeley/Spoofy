@@ -53,6 +53,7 @@ def process_domain(domain, enable_dkim=False, dns_server=None, resolver=None):
         "DMARC_FORENSIC_REPORT": dmarc.ruf,
         "DMARC_AGGREGATE_REPORT": dmarc.rua,
         "DKIM": dkim_record,
+        "DKIM_CHECKED": enable_dkim,
         "BIMI_RECORD": bimi.bimi_record,
         "BIMI_VERSION": bimi.version,
         "BIMI_LOCATION": bimi.location,

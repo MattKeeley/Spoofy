@@ -137,7 +137,8 @@ def printer(**result):
 
     if get("DKIM"):
         output_message("[*]", f"DKIM selectors: \r\n{get('DKIM')}", "info")
-    else:
+    elif get("DKIM_CHECKED"):
+        # Only report "none found" when --dkim actually looked; stay silent otherwise.
         output_message(
             "[?]", f"No known DKIM selectors enumerated on {domain}.", "warning"
         )
