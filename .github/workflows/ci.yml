@@ -23,3 +23,8 @@ jobs:
 
       - name: Run tests
         run: python3 test.py
+
+      - name: Install the package and run the command
+        run: |
+          pip install .
+          cd / && spoofy --help

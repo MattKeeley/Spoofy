@@ -1,6 +1,4 @@
-# modules/dkim.py
-
-import requests
+# spoofy/dkim.py
 
 API_URL = "https://archive.prove.email/api/key"
 
@@ -14,6 +12,8 @@ class DKIM:
 
     def get_dkim_record(self):
         """Returns the DKIM records for the domain, or None if there are none or the API fails."""
+        import requests  # only --dkim needs it
+
         try:
             response = requests.get(
                 API_URL,
@@ -37,7 +37,9 @@ class DKIM:
                 continue
             selector = record.get("selector", "unknown")
             name = f"{selector}._domainkey.{record.get('domain', self.domain)}"
-            if name not in latest or record.get("lastSeenAt", "") > latest[name].get("lastSeenAt", ""):
+            if name not in latest or record.get("lastSeenAt", "") > latest[name].get(
+                "lastSeenAt", ""
+            ):
                 latest[name] = record
 
         lines = []

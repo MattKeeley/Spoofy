@@ -1,4 +1,4 @@
-# modules/dmarc.py
+# spoofy/dmarc.py
 
 import re
 
@@ -40,7 +40,7 @@ def tree_walk_targets(domain):
 
 def one_label_below(domain, ancestor):
     """one_label_below('a.b.example.gov', 'gov') -> 'example.gov'."""
-    return ".".join(domain.split(".")[-(len(ancestor.split(".")) + 1):])
+    return ".".join(domain.split(".")[-(len(ancestor.split(".")) + 1) :])
 
 
 class DMARC:
@@ -65,7 +65,9 @@ class DMARC:
         if self.dmarc_record:
             self._load_tags(parse_tags(self.dmarc_record))
             if self.inherited:
-                self.domain_exists = self.resolver.query(domain, "A").status != "nxdomain"
+                self.domain_exists = (
+                    self.resolver.query(domain, "A").status != "nxdomain"
+                )
 
     @property
     def inherited(self):
@@ -86,7 +88,9 @@ class DMARC:
                 if is_dmarc_record(record):
                     records.append(record.strip())
                 elif "dmarc1" in record.lower():
-                    self.warnings.append(f"_dmarc.{target} has a malformed record receivers ignore: {record!r}")
+                    self.warnings.append(
+                        f"_dmarc.{target} has a malformed record receivers ignore: {record!r}"
+                    )
             if len(records) > 1:
                 self.warnings.append(
                     f"{len(records)} DMARC records at _dmarc.{target}; receivers ignore all of them"
@@ -119,7 +123,9 @@ class DMARC:
         self.rua, self.ruf = tags.get("rua"), tags.get("ruf")
         self.t = tags.get("t", "").lower() or None
 
-        policy, sp, np = (tags.get(tag, "").lower() or None for tag in ("p", "sp", "np"))
+        policy, sp, np = (
+            tags.get(tag, "").lower() or None for tag in ("p", "sp", "np")
+        )
         if policy not in POLICIES or {sp, np} - {None, *POLICIES}:
             # RFC 9989 4.7: act as p=none if reports are requested, else ignore the record.
             policy, sp, np = ("none" if self.rua else None), None, None

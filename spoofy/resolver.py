@@ -1,4 +1,4 @@
-# modules/resolver.py
+# spoofy/resolver.py
 
 import threading
 from dataclasses import dataclass, field
@@ -60,7 +60,8 @@ class Resolver:
             if key in self._cache:
                 return self._cache[key]
         result = self._query(key[0], rdtype)
-        if result.status != "error":  # a transient failure must not stick for the whole run
+        # A transient failure must not stick for the whole run.
+        if result.status != "error":
             with self._lock:
                 self._cache[key] = result
         return result
@@ -73,7 +74,9 @@ class Resolver:
             answer = self._resolver.resolve(name, rdtype, raise_on_no_answer=False)
         except dns.resolver.NXDOMAIN:
             return DNSResult("nxdomain")
-        except dns.exception.DNSException as e:  # timeout, SERVFAIL/REFUSED, bad name, ...
+        except (
+            dns.exception.DNSException
+        ) as e:  # timeout, SERVFAIL/REFUSED, bad name, ...
             return DNSResult("error", error=type(e).__name__)
         if answer.rrset is None:
             return DNSResult("nodata")
